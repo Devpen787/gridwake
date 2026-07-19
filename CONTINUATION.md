@@ -161,6 +161,8 @@ Possess Light v1 (solo) and Premium Feel v1 are shipped.
 
 - [x] Open production in a clean browser runtime and verify rendered UI (landing +
       premium asset fingerprints, 2026-07-19).
+- [x] Source published to GitHub: https://github.com/Devpen787/gridwake
+      (initial commit `1137b1c` on `main`, 2026-07-19).
 - [ ] Prove a production room across two physically separate devices or networks (Gate 5).
 - [ ] Exercise restrictive-NAT failure handling; custom TURN is not configured (Gate 5).
 
