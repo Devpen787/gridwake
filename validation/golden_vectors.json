@@ -1,0 +1,274 @@
+{
+  "budgets": {
+    "10": 286,
+    "11": 312,
+    "12": 337,
+    "13": 363,
+    "14": 388,
+    "15": 413,
+    "16": 439,
+    "17": 464,
+    "18": 489,
+    "19": 514,
+    "2": 77,
+    "20": 539,
+    "21": 564,
+    "22": 589,
+    "23": 614,
+    "24": 639,
+    "3": 104,
+    "4": 131,
+    "5": 157,
+    "6": 183,
+    "7": 209,
+    "8": 235,
+    "9": 261
+  },
+  "constants": {
+    "exposure_floor": 5000,
+    "health_max": 10000,
+    "law_bounds": {
+      "corruption_permille": [
+        800,
+        1200
+      ],
+      "defense_permille": [
+        900,
+        1100
+      ],
+      "pulse_strength": [
+        120,
+        320
+      ],
+      "repair_distinct_players": [
+        2,
+        3
+      ]
+    },
+    "pressure_max": 10000,
+    "round_ticks": 600,
+    "sectors": 8
+  },
+  "contract": "gridwake-sector-reference-v1",
+  "defense": {
+    "0": 0,
+    "1": 40,
+    "10": 224,
+    "11": 232,
+    "12": 238,
+    "13": 245,
+    "14": 250,
+    "15": 255,
+    "16": 260,
+    "17": 264,
+    "18": 268,
+    "19": 272,
+    "2": 87,
+    "20": 275,
+    "21": 279,
+    "22": 282,
+    "23": 284,
+    "24": 287,
+    "3": 120,
+    "4": 149,
+    "5": 167,
+    "6": 182,
+    "7": 194,
+    "8": 205,
+    "9": 215
+  },
+  "order_invariant_step_a": {
+    "defense": [
+      40,
+      87,
+      0,
+      0,
+      0,
+      0,
+      0,
+      40
+    ],
+    "growth": [
+      17,
+      16,
+      16,
+      16,
+      16,
+      16,
+      17,
+      17
+    ],
+    "health": 10000,
+    "pressure": [
+      977,
+      929,
+      1016,
+      796,
+      1016,
+      1016,
+      1017,
+      977
+    ],
+    "pulse_effect": [
+      0,
+      0,
+      0,
+      220,
+      0,
+      0,
+      0,
+      0
+    ],
+    "rng_state": 1218640798
+  },
+  "order_invariant_step_b": {
+    "defense": [
+      40,
+      87,
+      0,
+      0,
+      0,
+      0,
+      0,
+      40
+    ],
+    "growth": [
+      17,
+      16,
+      16,
+      16,
+      16,
+      16,
+      17,
+      17
+    ],
+    "health": 10000,
+    "pressure": [
+      977,
+      929,
+      1016,
+      796,
+      1016,
+      1016,
+      1017,
+      977
+    ],
+    "pulse_effect": [
+      0,
+      0,
+      0,
+      220,
+      0,
+      0,
+      0,
+      0
+    ],
+    "rng_state": 1218640798
+  },
+  "rounds": [
+    {
+      "health": 10000,
+      "law": {
+        "corruption_permille": 1000,
+        "defense_permille": 1000,
+        "pulse_strength": 220,
+        "repair_distinct_players": 2
+      },
+      "players": 2,
+      "policy": "balanced",
+      "pressure": [
+        856,
+        873,
+        890,
+        896,
+        873,
+        879,
+        896,
+        862
+      ],
+      "pulses_used": 0,
+      "replay_hash": "08e7c4cbd92e6b793bfc92d71054202ae1e2628134317f176defbdabb9acd960",
+      "seed": 1,
+      "shared_win": true,
+      "ticks_completed": 600
+    },
+    {
+      "health": 10000,
+      "law": {
+        "corruption_permille": 1000,
+        "defense_permille": 1000,
+        "pulse_strength": 220,
+        "repair_distinct_players": 2
+      },
+      "players": 4,
+      "policy": "balanced",
+      "pressure": [
+        0,
+        16,
+        17,
+        0,
+        17,
+        16,
+        0,
+        0
+      ],
+      "pulses_used": 0,
+      "replay_hash": "a05c18528cd827c63a2a7091ac535ba59be3ccab98603f5d55fe2a9c25dfab73",
+      "seed": 42,
+      "shared_win": true,
+      "ticks_completed": 600
+    },
+    {
+      "health": 0,
+      "law": {
+        "corruption_permille": 1000,
+        "defense_permille": 1000,
+        "pulse_strength": 220,
+        "repair_distinct_players": 2
+      },
+      "players": 8,
+      "policy": "herd",
+      "pressure": [
+        0,
+        8219,
+        8105,
+        8202,
+        8087,
+        8184,
+        8281,
+        8167
+      ],
+      "pulses_used": 0,
+      "replay_hash": "153c0cb1d12f9bb2855856c915996ee83b122a0007d8a2f1284734a455a608dd",
+      "seed": 42,
+      "shared_win": false,
+      "ticks_completed": 241
+    },
+    {
+      "health": 10000,
+      "law": {
+        "corruption_permille": 1200,
+        "defense_permille": 1000,
+        "pulse_strength": 220,
+        "repair_distinct_players": 2
+      },
+      "players": 24,
+      "policy": "balanced",
+      "pressure": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pulses_used": 0,
+      "replay_hash": "c449001f6d359bb0937aeca201780a548eaf1a8200c48acfc54f9270376cb735",
+      "seed": 999,
+      "shared_win": true,
+      "ticks_completed": 600
+    }
+  ]
+}

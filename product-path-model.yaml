@@ -1,0 +1,111 @@
+version: 0.1
+product: GRIDWAKE
+updated: 2026-07-18
+truth_boundary: design_specification_only
+
+actors:
+  - visitor
+  - guest
+  - connected_player
+  - spectator
+  - active_player
+  - room_host
+  - moderator
+  - operator
+
+global_invariants:
+  - no_gameplay_mutation_before_current_terms_acceptance
+  - client_never_authoritative_for_round_state
+  - model_never_executes_in_tick_loop
+  - exactly_one_accepted_pulse_per_active_player_per_round
+  - shared_outcome_has_no_individual_rank_or_transferable_reward
+  - public_counts_distinguish_active_ready_spectator_and_synthetic
+  - invalid_or_unverifiable_receipt_is_never_labeled_verified
+  - privacy_support_and_appeal_remain_reachable_after_access_denial
+
+states:
+  landing:
+    entry: https_request
+    actions: [play_as_guest, watch, how_it_works, accessibility, policies, status, support]
+    branches: [normal, no_capacity, maintenance, unsupported_browser, javascript_off, offline]
+    next: [consent, watch, static_tour]
+  consent:
+    requires: [age_18_affirmation, terms_version, community_rules_version]
+    optional: [nonessential_analytics_consent]
+    branches: [accepted, declined, under_age, version_changed, write_failed]
+    next: [guest_setup, landing, static_tour]
+  guest_setup:
+    creates: [opaque_session, neutral_callsign, short_lived_capability]
+    settings: [motion, contrast, color_palette, audio, screen_reader, text_size]
+    next: [matchmaking, invite_entry, practice]
+  matchmaking:
+    server_checks: [capacity, visibility, region, blocks, rate, room_phase]
+    branches: [join_phase, spectate_current_round, full, unavailable]
+    next: [tutorial, lobby, spectate]
+  tutorial:
+    duration_seconds: 10
+    teaches: [corruption_advances, distinct_trails_repair, protect_core]
+    controls: [keyboard, touch, screen_reader, reduced_motion, pause, replay, skip]
+    next: lobby
+  lobby:
+    actions: [draft_strategy, choose_template, compile, confirm_policy, ready, leave]
+    branches: [compile_success, compile_ambiguous, compile_rejected, model_outage, phase_closed]
+    next: [commit, spectate, lobby]
+  commit:
+    freezes: [roster, engine_version, dsl_version, law_version, policy_hashes, seed_commitment, initial_state]
+    duration_seconds: 3
+    next: live_round
+  live_round:
+    duration_ticks: 600
+    tick_rate_hz: 10
+    player_actions: [pulse, accessibility_settings, connection_menu, leave]
+    branches: [normal, reconnect, forced_spectate, kicked, server_pause, interrupted]
+    next: [result, enforcement_notice]
+  result:
+    states: [shared_win, shared_loss, interrupted]
+    receipt_states: [verified, pending, invalid, unverifiable]
+    actions: [play_again, leave, view_receipt, replay, report, propose_law]
+    next: [lobby, replay, report, law_proposal, landing]
+  law_proposal:
+    input_limit_characters: 160
+    states: [queued, moderated_rejection, compiling, verification_failed, certified, expired, applied, revoked]
+    authority: advisory_signal_plus_certified_seed_selection
+    next: [laws, lobby, landing]
+  privacy_controls:
+    actions: [view_session, disconnect_client, access_request, delete_request, revoke_share, revoke_optional_consent]
+    deletion_states: [received, identity_proof_needed, primary_complete, backup_pending, complete, exception_hold]
+  report:
+    sources: [room, result, law, shared_receipt, support]
+    states: [draft, submitted, failed, reviewing, closed]
+  enforcement:
+    notice: [scope, reason_category, duration, effective_time, policy_link, appeal]
+    next: [appeal, privacy_controls, support, landing]
+
+required_routes:
+  - /
+  - /how
+  - /play
+  - /room/:opaqueId
+  - /watch/:opaqueId
+  - /replay/:opaqueId
+  - /share/:opaqueId
+  - /verify
+  - /laws
+  - /settings
+  - /report
+  - /appeal
+  - /support
+  - /status
+  - /terms
+  - /privacy
+  - /community
+  - /accessibility
+  - /security
+
+unresolved_release_inputs:
+  - legal_operator_identity_and_contact
+  - hosting_regions_and_subprocessors
+  - governing_law_venue_and_consumer_exceptions
+  - exact_field_retention_schedule
+  - age_scope_and_minor_handling
+  - support_and_incident_staffing

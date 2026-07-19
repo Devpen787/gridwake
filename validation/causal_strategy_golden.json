@@ -1,0 +1,238 @@
+{
+  "contract": "gridwake-instinct-runtime-v1",
+  "policies": [
+    {
+      "name": "ring",
+      "source": "Guard the core in a tight disciplined ring. Send two units within 25% and do not chase. Pulse below 45% health.",
+      "policy": {
+        "focus": {
+          "core": 74,
+          "edge": 13,
+          "link": 13
+        },
+        "formation": "ring",
+        "engagementRadius": 5,
+        "interceptors": 2,
+        "pursuitLimit": 0,
+        "movementStyle": "disciplined",
+        "entropy": 10,
+        "risk": 35,
+        "pulseHealthThreshold": 45,
+        "matchedSignals": [
+          "core",
+          "guard",
+          "ring",
+          "chase",
+          "send",
+          "pulse",
+          "tight",
+          "disciplined"
+        ]
+      }
+    },
+    {
+      "name": "edge",
+      "source": "Spread wide, scout the weakest edges aggressively with all three units, and move unpredictably.",
+      "policy": {
+        "focus": {
+          "core": 10,
+          "edge": 81,
+          "link": 9
+        },
+        "formation": "spread",
+        "engagementRadius": 14,
+        "interceptors": 3,
+        "pursuitLimit": 2,
+        "movementStyle": "erratic",
+        "entropy": 78,
+        "risk": 65,
+        "pulseHealthThreshold": 35,
+        "matchedSignals": [
+          "edges",
+          "weakest",
+          "spread",
+          "scout",
+          "wide",
+          "aggressively",
+          "unpredictably"
+        ]
+      }
+    },
+    {
+      "name": "link",
+      "source": "Link together organically, reinforce every ally trail, and send one unit to nearby threats before returning.",
+      "policy": {
+        "focus": {
+          "core": 10,
+          "edge": 9,
+          "link": 81
+        },
+        "formation": "link",
+        "engagementRadius": 8,
+        "interceptors": 1,
+        "pursuitLimit": 2,
+        "movementStyle": "organic",
+        "entropy": 34,
+        "risk": 50,
+        "pulseHealthThreshold": 35,
+        "matchedSignals": [
+          "ally",
+          "together",
+          "link",
+          "reinforce",
+          "trail",
+          "send"
+        ]
+      }
+    },
+    {
+      "name": "ten_percent_ring",
+      "source": "Go in circles around the light and only attack anything within 10%; send two and do not chase.",
+      "policy": {
+        "focus": {
+          "core": 67,
+          "edge": 17,
+          "link": 16
+        },
+        "formation": "ring",
+        "engagementRadius": 4,
+        "interceptors": 2,
+        "pursuitLimit": 0,
+        "movementStyle": "organic",
+        "entropy": 34,
+        "risk": 50,
+        "pulseHealthThreshold": 35,
+        "matchedSignals": [
+          "circles",
+          "light",
+          "attack",
+          "chase",
+          "send",
+          "only"
+        ]
+      }
+    }
+  ],
+  "guidance": [
+    {
+      "health": 100,
+      "threat": 30,
+      "threshold": 35,
+      "result": "HOLD"
+    },
+    {
+      "health": 50,
+      "threat": 55,
+      "threshold": 35,
+      "result": "READY"
+    },
+    {
+      "health": 34,
+      "threat": 20,
+      "threshold": 35,
+      "result": "FIRE"
+    },
+    {
+      "health": 90,
+      "threat": 76,
+      "threshold": 35,
+      "result": "FIRE"
+    }
+  ],
+  "exposure": [
+    {
+      "corruptionSize": 69,
+      "defenders": 0,
+      "tick": 15,
+      "result": 0
+    },
+    {
+      "corruptionSize": 70,
+      "defenders": 0,
+      "tick": 14,
+      "result": 0
+    },
+    {
+      "corruptionSize": 70,
+      "defenders": 0,
+      "tick": 15,
+      "result": 2
+    },
+    {
+      "corruptionSize": 70,
+      "defenders": 1,
+      "tick": 15,
+      "result": 1
+    },
+    {
+      "corruptionSize": 70,
+      "defenders": 2,
+      "tick": 15,
+      "result": 0
+    }
+  ],
+  "urgency": [
+    {
+      "coreDistance": 4,
+      "engagementRadius": 4,
+      "sectorPressure": 0,
+      "result": 100
+    },
+    {
+      "coreDistance": 7,
+      "engagementRadius": 4,
+      "sectorPressure": 4,
+      "result": 76
+    },
+    {
+      "coreDistance": 20,
+      "engagementRadius": 4,
+      "sectorPressure": 0,
+      "result": 0
+    },
+    {
+      "coreDistance": 5,
+      "engagementRadius": 8,
+      "sectorPressure": 20,
+      "result": 100
+    }
+  ],
+  "pulse": {
+    "clearCap": 6,
+    "shieldTicks": 12
+  },
+  "grades": [
+    {
+      "outcome": "grid-held",
+      "health": 100,
+      "peakThreat": 40,
+      "instinctImpact": 100,
+      "score": 92,
+      "result": "S"
+    },
+    {
+      "outcome": "grid-held",
+      "health": 80,
+      "peakThreat": 40,
+      "instinctImpact": 80,
+      "score": 76,
+      "result": "A"
+    },
+    {
+      "outcome": "grid-held",
+      "health": 55,
+      "peakThreat": 90,
+      "instinctImpact": 30,
+      "score": 40,
+      "result": "C"
+    },
+    {
+      "outcome": "core-lost",
+      "health": 0,
+      "peakThreat": 100,
+      "instinctImpact": 100,
+      "score": 25,
+      "result": "D"
+    }
+  ]
+}

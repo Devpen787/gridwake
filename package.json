@@ -1,0 +1,31 @@
+{
+  "name": "gridwake",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "tsc -b && vite build",
+    "typecheck": "tsc -b --pretty false",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "verify": "npm run typecheck && npm test && npm run build && npm run validate:golden && npm run validate:sensitivity",
+    "verify:loop": "bash scripts/continuous-verify.sh",
+    "validate:golden": "python3 validation/causal_strategy_reference.py",
+    "validate:sensitivity": "vite-node validation/run_sensitivity.ts"
+  },
+  "dependencies": {
+    "pixi.js": "^8.13.2",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "trystero": "0.25.2"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.10",
+    "@types/react-dom": "^19.1.7",
+    "@vitejs/plugin-react": "^5.0.2",
+    "typescript": "^5.9.2",
+    "vite": "^7.1.5",
+    "vitest": "^3.2.4"
+  }
+}

@@ -1,0 +1,227 @@
+{
+  "cells": [
+    {
+      "health_max": 10000,
+      "health_median": 10000,
+      "health_min": 10000,
+      "losses": 0,
+      "players": 2,
+      "policy": "balanced",
+      "pulses_max": 0,
+      "win_rate_permille": 1000,
+      "wins": 200
+    },
+    {
+      "health_max": 0,
+      "health_median": 0,
+      "health_min": 0,
+      "losses": 200,
+      "players": 2,
+      "policy": "herd",
+      "pulses_max": 0,
+      "win_rate_permille": 0,
+      "wins": 0
+    },
+    {
+      "health_max": 0,
+      "health_median": 0,
+      "health_min": 0,
+      "losses": 200,
+      "players": 2,
+      "policy": "waste",
+      "pulses_max": 0,
+      "win_rate_permille": 0,
+      "wins": 0
+    },
+    {
+      "health_max": 0,
+      "health_median": 0,
+      "health_min": 0,
+      "losses": 200,
+      "players": 2,
+      "policy": "idle",
+      "pulses_max": 0,
+      "win_rate_permille": 0,
+      "wins": 0
+    },
+    {
+      "health_max": 10000,
+      "health_median": 10000,
+      "health_min": 10000,
+      "losses": 0,
+      "players": 4,
+      "policy": "balanced",
+      "pulses_max": 0,
+      "win_rate_permille": 1000,
+      "wins": 200
+    },
+    {
+      "health_max": 0,
+      "health_median": 0,
+      "health_min": 0,
+      "losses": 200,
+      "players": 4,
+      "policy": "herd",
+      "pulses_max": 0,
+      "win_rate_permille": 0,
+      "wins": 0
+    },
+    {
+      "health_max": 0,
+      "health_median": 0,
+      "health_min": 0,
+      "losses": 200,
+      "players": 4,
+      "policy": "waste",
+      "pulses_max": 0,
+      "win_rate_permille": 0,
+      "wins": 0
+    },
+    {
+      "health_max": 0,
+      "health_median": 0,
+      "health_min": 0,
+      "losses": 200,
+      "players": 4,
+      "policy": "idle",
+      "pulses_max": 0,
+      "win_rate_permille": 0,
+      "wins": 0
+    },
+    {
+      "health_max": 10000,
+      "health_median": 10000,
+      "health_min": 10000,
+      "losses": 0,
+      "players": 8,
+      "policy": "balanced",
+      "pulses_max": 0,
+      "win_rate_permille": 1000,
+      "wins": 200
+    },
+    {
+      "health_max": 0,
+      "health_median": 0,
+      "health_min": 0,
+      "losses": 200,
+      "players": 8,
+      "policy": "herd",
+      "pulses_max": 0,
+      "win_rate_permille": 0,
+      "wins": 0
+    },
+    {
+      "health_max": 0,
+      "health_median": 0,
+      "health_min": 0,
+      "losses": 200,
+      "players": 8,
+      "policy": "waste",
+      "pulses_max": 0,
+      "win_rate_permille": 0,
+      "wins": 0
+    },
+    {
+      "health_max": 0,
+      "health_median": 0,
+      "health_min": 0,
+      "losses": 200,
+      "players": 8,
+      "policy": "idle",
+      "pulses_max": 0,
+      "win_rate_permille": 0,
+      "wins": 0
+    },
+    {
+      "health_max": 10000,
+      "health_median": 10000,
+      "health_min": 10000,
+      "losses": 0,
+      "players": 16,
+      "policy": "balanced",
+      "pulses_max": 0,
+      "win_rate_permille": 1000,
+      "wins": 200
+    },
+    {
+      "health_max": 0,
+      "health_median": 0,
+      "health_min": 0,
+      "losses": 200,
+      "players": 16,
+      "policy": "herd",
+      "pulses_max": 0,
+      "win_rate_permille": 0,
+      "wins": 0
+    },
+    {
+      "health_max": 0,
+      "health_median": 0,
+      "health_min": 0,
+      "losses": 200,
+      "players": 16,
+      "policy": "waste",
+      "pulses_max": 0,
+      "win_rate_permille": 0,
+      "wins": 0
+    },
+    {
+      "health_max": 0,
+      "health_median": 0,
+      "health_min": 0,
+      "losses": 200,
+      "players": 16,
+      "policy": "idle",
+      "pulses_max": 0,
+      "win_rate_permille": 0,
+      "wins": 0
+    },
+    {
+      "health_max": 10000,
+      "health_median": 10000,
+      "health_min": 10000,
+      "losses": 0,
+      "players": 24,
+      "policy": "balanced",
+      "pulses_max": 0,
+      "win_rate_permille": 1000,
+      "wins": 200
+    },
+    {
+      "health_max": 0,
+      "health_median": 0,
+      "health_min": 0,
+      "losses": 200,
+      "players": 24,
+      "policy": "herd",
+      "pulses_max": 0,
+      "win_rate_permille": 0,
+      "wins": 0
+    },
+    {
+      "health_max": 0,
+      "health_median": 0,
+      "health_min": 0,
+      "losses": 200,
+      "players": 24,
+      "policy": "waste",
+      "pulses_max": 0,
+      "win_rate_permille": 0,
+      "wins": 0
+    },
+    {
+      "health_max": 0,
+      "health_median": 0,
+      "health_min": 0,
+      "losses": 200,
+      "players": 24,
+      "policy": "idle",
+      "pulses_max": 0,
+      "win_rate_permille": 0,
+      "wins": 0
+    }
+  ],
+  "contract": "gridwake-sector-reference-v1",
+  "seeds_per_cell": 200,
+  "warning": "design calibration evidence only; not production telemetry or engine parity"
+}
