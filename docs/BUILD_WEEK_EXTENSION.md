@@ -55,9 +55,7 @@ Disclosure: this polish pass was implemented in Cursor rather than a separate Co
 | `11f252c` | `feat: compare same-seed attempts` | Prompt 04 |
 | `60d2cfa` | `feat: intensify phosphor arena feedback` | Prompt 05 |
 | `dfb5ea6` | `feat: add touch possession controls` | Prompt 06 |
-| *(this commit)* | `docs: prepare judge path and build evidence` | Prompt 07 |
-
-Tip of polish branch at Prompt 07 docs commit: update after commit; deploy SHA recorded below after production promote.
+| `2f6c1f0` | `docs: prepare judge path and build evidence` | Prompt 07 |
 
 ## Decision log
 
@@ -84,4 +82,8 @@ Tip of polish branch at Prompt 07 docs commit: update after commit; deploy SHA r
 - Demo script: [`demo/demo-script.md`](../demo/demo-script.md)
 - QA checklist: [`docs/RELEASE_QA.md`](RELEASE_QA.md)
 - Screenshots: *pending capture into `demo/screenshots/` after production deploy*
-- Deployment: record SHA + Vercel deployment ID after Prompt 07/08 promote to https://gridwake.vercel.app
+- Deployment commit (pre–Prompt 08 alias): tip of `demo-final-polish` at docs gate `2f6c1f0`
+- Vercel production deploy: `dpl_3QSRiouEqBWTcMUVnpJK26TKXcaf`
+- Aliased URL: https://gridwake.vercel.app
+- Inspect: https://vercel.com/devinsons-projects-b5ab981e/gridwake/3QSRiouEqBWTcMUVnpJK26TKXcaf
+- Final polish SHA after Prompt 08: *(updated in same commit)*

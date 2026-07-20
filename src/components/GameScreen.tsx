@@ -209,12 +209,13 @@ export function GameScreen({
   }, [pulseKick]);
 
   const pulse = useCallback(() => {
+    dismissControlsHint();
     if (onPulseRequest) {
       onPulseRequest(state.tick);
       return;
     }
     setState((current) => activatePulse(current));
-  }, [onPulseRequest, state.tick]);
+  }, [dismissControlsHint, onPulseRequest, state.tick]);
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
