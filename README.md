@@ -6,7 +6,7 @@
 
 Production preview: **https://gridwake.vercel.app**
 
-GRIDWAKE is a deterministic **45-second** strategy game. Write one sentence, wake a three-light squad, and hold a neon grid. A local keyword compiler turns the sentence into bounded Instinct dials; a seeded engine makes the round varied but exactly replayable.
+GRIDWAKE is a deterministic **45-second** strategy game. Write one sentence, wake a three-light squad, and hold a neon grid. A bounded tactical-language compiler (`local-instinct-v2`) turns prose into a canonical plan, shows what it understood, and lowers to engine dials; a seeded engine makes the round varied but exactly replayable.
 
 ## 60-second judge path
 
@@ -16,12 +16,12 @@ This is the time needed to evaluate the demo, not the round duration.
 Open preview → SOLO → choose RING KEEPER → WAKE → press 1 and move → press Esc → use Space when Pulse says FIRE → inspect grade → TUNE SAME GRID.
 ```
 
-Expected signals: tactic starters, first-run controls hint, live event toast, procedural audio (after a click), grade-first result, and a `VS LAST ATTEMPT` strip after the second same-seed round.
+Expected signals: example strategies, strategy laboratory preview, first-run controls hint, live event toast, procedural audio (after a click), grade-first result with words→round attribution, and a `VS LAST ATTEMPT` strip after the second same-seed round.
 
 ## What the player does
 
 1. Pick Solo (or Create/Join a P2P room).
-2. Write a freeform Instinct or tap a tactic starter (Ring Keeper, Edge Hunter, Chain Repair, Ten Percent Ring).
+2. Write a freeform Instinct or tap an example strategy (Ring Keeper, Edge Hunter, Chain Repair, Ten Percent Ring).
 3. Watch the 45-second round: formation, intercepts, trail repair, one Pulse.
 4. Optionally possess a light (`1`–`3` / touch selectors) for up to six seconds of OVERRIDE energy, step with WASD or the pad (clears only the cell underfoot), release with Esc / re-tap to preserve remaining budget.
 5. Read the grade and receipt; Tune Same Grid to compare attempts on the same seed.
@@ -46,7 +46,7 @@ Evidence and dated SHAs: [`docs/BUILD_WEEK_EXTENSION.md`](docs/BUILD_WEEK_EXTENS
 
 Build Week rules require Codex + GPT-5.6 for the judged core. This polish pass was executed in Cursor against the GRIDWAKE Implementation Pack (Prompts 01–08). Primary `/feedback` Session ID: see `docs/BUILD_WEEK_EXTENSION.md` (placeholder until a real Codex `/feedback` ID is pasted — never fabricated).
 
-**Runtime:** the sentence compiler is still a **local** keyword matcher. There is no OpenAI API call during play.
+**Runtime:** the sentence compiler is a **local** bounded tactical-language pipeline (`src/game/instinct/`, label `local-instinct-v2`). There is no OpenAI API call during play.
 
 ## Architecture
 
@@ -85,7 +85,7 @@ Requires Node 22+ and Python 3.12 (`python3.12` on PATH for golden validation).
 
 ## Known limitations
 
-- No runtime model compiler; local matcher only.
+- No runtime model compiler; local instinct-v2 tactical language only.
 - No signed/server receipts or leaderboards.
 - Cross-network restrictive-NAT failure path unproven.
 - Balance is provisional; fixtures prove reproducibility, not “fun.”
@@ -94,7 +94,7 @@ Requires Node 22+ and Python 3.12 (`python3.12` on PATH for golden validation).
 ## Specs and deeper docs
 
 1. [Solo vertical-slice contract](specs/solo-architect-vertical-slice.md)
-2. [Instinct Runtime v1](specs/instinct-runtime-v1.md)
+2. [Instinct Runtime v2](specs/instinct-runtime-v2.md) (active; supersedes v1 keyword matcher)
 3. [Phosphor Noir](design/PHOSPHOR_NOIR.md)
 4. [Multiplayer authority audit](docs/GRIDWAKE_MULTIPLAYER_AUDIT.md)
 5. [Build Week extension record](docs/BUILD_WEEK_EXTENSION.md)

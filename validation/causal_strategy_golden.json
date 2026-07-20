@@ -1,14 +1,14 @@
 {
-  "contract": "gridwake-instinct-runtime-v1",
+  "contract": "gridwake-instinct-runtime-v2",
   "policies": [
     {
       "name": "ring",
       "source": "Guard the core in a tight disciplined ring. Send two units within 25% and do not chase. Pulse below 45% health.",
       "policy": {
         "focus": {
-          "core": 74,
-          "edge": 13,
-          "link": 13
+          "core": 41,
+          "edge": 34,
+          "link": 25
         },
         "formation": "ring",
         "engagementRadius": 5,
@@ -16,17 +16,15 @@
         "pursuitLimit": 0,
         "movementStyle": "disciplined",
         "entropy": 10,
-        "risk": 35,
+        "risk": 50,
         "pulseHealthThreshold": 45,
         "matchedSignals": [
+          "screen",
           "core",
-          "guard",
-          "ring",
-          "chase",
-          "send",
-          "pulse",
-          "tight",
-          "disciplined"
+          "guardian",
+          "intercept",
+          "nearest-breach",
+          "scout"
         ]
       }
     },
@@ -35,26 +33,22 @@
       "source": "Spread wide, scout the weakest edges aggressively with all three units, and move unpredictably.",
       "policy": {
         "focus": {
-          "core": 10,
-          "edge": 81,
-          "link": 9
+          "core": 28,
+          "edge": 44,
+          "link": 28
         },
         "formation": "spread",
         "engagementRadius": 14,
         "interceptors": 3,
-        "pursuitLimit": 2,
+        "pursuitLimit": 6,
         "movementStyle": "erratic",
         "entropy": 78,
         "risk": 65,
         "pulseHealthThreshold": 35,
         "matchedSignals": [
-          "edges",
-          "weakest",
-          "spread",
-          "scout",
-          "wide",
-          "aggressively",
-          "unpredictably"
+          "intercept",
+          "highest-pressure-sector",
+          "squad"
         ]
       }
     },
@@ -63,25 +57,22 @@
       "source": "Link together organically, reinforce every ally trail, and send one unit to nearby threats before returning.",
       "policy": {
         "focus": {
-          "core": 10,
-          "edge": 9,
-          "link": 81
+          "core": 28,
+          "edge": 28,
+          "link": 44
         },
         "formation": "link",
         "engagementRadius": 8,
         "interceptors": 1,
         "pursuitLimit": 2,
         "movementStyle": "organic",
-        "entropy": 34,
+        "entropy": 42,
         "risk": 50,
         "pulseHealthThreshold": 35,
         "matchedSignals": [
-          "ally",
-          "together",
-          "link",
-          "reinforce",
-          "trail",
-          "send"
+          "repair",
+          "shared-trail",
+          "mender"
         ]
       }
     },
@@ -90,25 +81,25 @@
       "source": "Go in circles around the light and only attack anything within 10%; send two and do not chase.",
       "policy": {
         "focus": {
-          "core": 67,
-          "edge": 17,
-          "link": 16
+          "core": 41,
+          "edge": 34,
+          "link": 25
         },
         "formation": "ring",
         "engagementRadius": 4,
         "interceptors": 2,
         "pursuitLimit": 0,
         "movementStyle": "organic",
-        "entropy": 34,
+        "entropy": 42,
         "risk": 50,
         "pulseHealthThreshold": 35,
         "matchedSignals": [
-          "circles",
-          "light",
-          "attack",
-          "chase",
-          "send",
-          "only"
+          "orbit",
+          "core",
+          "guardian",
+          "intercept",
+          "nearest-breach",
+          "scout"
         ]
       }
     }

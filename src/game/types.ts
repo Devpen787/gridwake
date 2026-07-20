@@ -2,7 +2,7 @@ export const GRID_COLUMNS = 30;
 export const GRID_ROWS = 18;
 export const CORE_X = 15;
 export const CORE_Y = 9;
-export const ENGINE_VERSION = "gridwake-local-v0.5";
+export const ENGINE_VERSION = "gridwake-local-v0.6";
 export const TICK_RATE = 10;
 export const ROUND_SECONDS = 45;
 export const ROUND_TICKS = ROUND_SECONDS * TICK_RATE;
@@ -86,6 +86,21 @@ export type PulseState = Readonly<{
 
 export type RoundPhase = "probe" | "surge" | "collapse";
 
+export type AttributionSource = "player" | "inferred" | "default" | "override" | "pulse";
+
+export type AttributionEntry = Readonly<{
+  tick: number;
+  action: string;
+  detail: string;
+  source: AttributionSource;
+  directiveIndex?: number;
+  evidence?: string;
+}>;
+
+export type RoundAttribution = Readonly<{
+  entries: readonly AttributionEntry[];
+}>;
+
 export type EngineState = Readonly<{
   seed: number;
   rngState: number;
@@ -111,6 +126,9 @@ export type EngineState = Readonly<{
   possessedLightId: string | null;
   manualIntent: ManualIntent | null;
   overrideTicksRemaining: number;
+  attribution?: RoundAttribution;
+  plan?: import("./instinct/types").CanonicalStrategyPlan;
+  interpretation?: import("./instinct/types").StrategyInterpretation;
 }>;
 
 export type Instinct = Readonly<{
@@ -123,7 +141,11 @@ export type CompiledStrategy = Readonly<{
   source: string;
   policy: StrategyPolicy;
   instincts: readonly Instinct[];
-  compiler: "local-prototype";
+  compiler: "local-prototype" | "local-instinct-v2";
+  plan?: import("./instinct/types").CanonicalStrategyPlan;
+  planHash?: string;
+  sourceHash?: string;
+  interpretation?: import("./instinct/types").StrategyInterpretation;
 }>;
 
 export type RoundReceipt = Readonly<{

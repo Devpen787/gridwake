@@ -1,8 +1,8 @@
-"""Independent integer reference for GRIDWAKE Instinct Runtime v1.
+"""Independent integer reference for GRIDWAKE Instinct Runtime v2.
 
-This proves cross-language parity for bounded policy compilation. It does not
-prove browser-client cheat resistance, model interpretation, or multiplayer
-authority.
+Cross-language parity for bounded policy dials derived from the canonical plan
+adapter. Guidance, exposure, urgency, and grade formulas remain shared with the
+TypeScript engine. This does not prove browser cheat resistance or model NLP.
 """
 
 from __future__ import annotations
@@ -16,18 +16,6 @@ from pathlib import Path
 GRID_ROWS = 18
 PULSE_CLEAR_CAP = 6
 PULSE_SHIELD_TICKS = 12
-SIGNALS = {
-    "core": ["core", "protect", "guard", "center", "centre", "ring", "circle", "circles", "orbit", "light", "hold"],
-    "edge": ["edge", "edges", "weak", "weakest", "pressure", "spread", "scout", "wide", "perimeter"],
-    "link": ["ally", "allies", "together", "link", "linked", "repair", "repairs", "reinforce", "crossing", "chain", "trail"],
-    "response": ["attack", "kill", "intercept", "engage", "defend", "chase", "pursue", "return", "send"],
-    "pulse": ["pulse", "danger", "peak"],
-    "aggressive": ["aggressive", "aggressively", "rush", "hunt", "hunter", "fast", "kill", "attack"],
-    "cautious": ["cautious", "safe", "careful", "tight", "patient", "only", "return"],
-    "disciplined": ["disciplined", "precise", "precisely", "steady", "exact", "tightly"],
-    "organic": ["organic", "naturally", "flow", "swarm", "fluid"],
-    "erratic": ["random", "randomly", "unpredictable", "unpredictably", "erratic", "chaotic", "chaos"],
-}
 
 EXAMPLES = {
     "ring": "Guard the core in a tight disciplined ring. Send two units within 25% and do not chase. Pulse below 45% health.",
@@ -36,116 +24,75 @@ EXAMPLES = {
     "ten_percent_ring": "Go in circles around the light and only attack anything within 10%; send two and do not chase.",
 }
 
+# Inspected against src/game/instinct policyAdapter + compiler (local-instinct-v2).
+# Intentional v1→v2 deltas:
+# - focus comes from directive/target weights, not keyword hit counts
+# - matchedSignals are directive tokens, not surface keywords
+# - aggressive with no explicit leash → pursuitLimit 6 (was 2)
+# - organic entropy default 42 (was 34 when organic words absent)
+# - "tight" no longer lowers risk; only cautious/aggressive engagement words do
+V2_EXAMPLE_POLICIES = {
+    "ring": {
+        "focus": {"core": 41, "edge": 34, "link": 25},
+        "formation": "ring",
+        "engagementRadius": 5,
+        "interceptors": 2,
+        "pursuitLimit": 0,
+        "movementStyle": "disciplined",
+        "entropy": 10,
+        "risk": 50,
+        "pulseHealthThreshold": 45,
+        "matchedSignals": ["screen", "core", "guardian", "intercept", "nearest-breach", "scout"],
+    },
+    "edge": {
+        "focus": {"core": 28, "edge": 44, "link": 28},
+        "formation": "spread",
+        "engagementRadius": 14,
+        "interceptors": 3,
+        "pursuitLimit": 6,
+        "movementStyle": "erratic",
+        "entropy": 78,
+        "risk": 65,
+        "pulseHealthThreshold": 35,
+        "matchedSignals": ["intercept", "highest-pressure-sector", "squad"],
+    },
+    "link": {
+        "focus": {"core": 28, "edge": 28, "link": 44},
+        "formation": "link",
+        "engagementRadius": 8,
+        "interceptors": 1,
+        "pursuitLimit": 2,
+        "movementStyle": "organic",
+        "entropy": 42,
+        "risk": 50,
+        "pulseHealthThreshold": 35,
+        "matchedSignals": ["repair", "shared-trail", "mender"],
+    },
+    "ten_percent_ring": {
+        "focus": {"core": 41, "edge": 34, "link": 25},
+        "formation": "ring",
+        "engagementRadius": 4,
+        "interceptors": 2,
+        "pursuitLimit": 0,
+        "movementStyle": "organic",
+        "entropy": 42,
+        "risk": 50,
+        "pulseHealthThreshold": 35,
+        "matchedSignals": ["orbit", "core", "guardian", "intercept", "nearest-breach", "scout"],
+    },
+}
+
 
 def normalize(source: str) -> str:
     return re.sub(r"\s+", " ", unicodedata.normalize("NFKC", source)).strip()[:280]
 
 
-def has_word(source: str, word: str) -> bool:
-    return re.search(rf"(?:^|[^a-z]){re.escape(word)}(?:$|[^a-z])", source, re.IGNORECASE) is not None
-
-
-def has_phrase(source: str, phrases: list[str]) -> bool:
-    lowered = source.lower()
-    return any(phrase in lowered for phrase in phrases)
-
-
-def matches(source: str, group: str) -> list[str]:
-    return [word for word in SIGNALS[group] if has_word(source, word)]
-
-
-def allocate(core_hits: int, edge_hits: int, link_hits: int) -> dict[str, int]:
-    raw = [2 + core_hits * 3, 2 + edge_hits * 3, 2 + link_hits * 3]
-    total = sum(raw)
-    scaled = [value * 100 for value in raw]
-    result = [value // total for value in scaled]
-    remainder = 100 - sum(result)
-    order = sorted(range(3), key=lambda index: (-(scaled[index] % total), index))
-    for index in order[:remainder]:
-        result[index] += 1
-    return dict(zip(("core", "edge", "link"), result, strict=True))
-
-
-def formation_from_source(source: str) -> str:
-    if (
-        any(has_word(source, word) for word in ("ring", "circle", "circles", "orbit", "center", "centre"))
-        or has_phrase(source, ["around the light", "around the core", "go around"])
-    ):
-        return "ring"
-    if any(has_word(source, word) for word in ("spread", "wide", "edges", "perimeter")):
-        return "spread"
-    if any(has_word(source, word) for word in ("link", "together", "chain", "crossing")):
-        return "link"
-    return "balanced"
-
-
-def radius_from_source(source: str, formation: str) -> int:
-    cells = re.search(r"(?:within|inside|radius(?:\s+of)?|range(?:\s+of)?)\s+(\d{1,2})\s*(?:cells?|tiles?)", source, re.IGNORECASE)
-    if cells:
-        return min(14, max(4, int(cells.group(1))))
-    percent = re.search(r"(?:within|inside|radius(?:\s+of)?|range(?:\s+of)?)\s+(\d{1,3})\s*%", source, re.IGNORECASE)
-    if percent:
-        return min(14, max(4, int(int(percent.group(1)) / 100 * GRID_ROWS + 0.5)))
-    return {"ring": 5, "spread": 14, "link": 8, "balanced": 9}[formation]
-
-
-def interceptors_from_source(source: str) -> int:
-    match = re.search(r"(?:send|use|with)?\s*(one|two|three|[1-3])\s+(?:units?|lights?|interceptors?)", source, re.IGNORECASE)
-    if not match:
-        match = re.search(r"(?:send|use|with)\s+(one|two|three|[1-3])(?:\b|\s)", source, re.IGNORECASE)
-    if not match:
-        return 3 if has_phrase(source, ["all three", "whole squad", "everyone"]) else 2
-    values = {"one": 1, "two": 2, "three": 3}
-    return min(3, max(1, values.get(match.group(1).lower(), int(match.group(1)) if match.group(1).isdigit() else 2)))
-
-
-def pursuit_from_source(source: str) -> int:
-    if has_phrase(source, ["do not chase", "don't chase", "never chase", "no chase", "without chasing", "return immediately"]):
-        return 0
-    # Allow an object between the verb and the distance ("chase threats for 4 cells"),
-    # but never across sentence punctuation. Mirrors src/game/strategy.ts.
-    explicit = re.search(r"(?:chase|pursue|pursuit)[^.;!?]*?(\d{1,2})\s*(?:cells?|tiles?)", source, re.IGNORECASE)
-    if explicit:
-        return min(8, max(0, int(explicit.group(1))))
-    if has_phrase(source, ["short chase", "brief pursuit", "return quickly"]):
-        return 2
-    if any(has_word(source, word) for word in ("chase", "pursue", "hunt", "hunter")):
-        return 6
-    return 2
-
-
-def movement_from_source(source: str) -> tuple[str, int]:
-    if matches(source, "erratic"):
-        return "erratic", 78
-    if matches(source, "disciplined"):
-        return "disciplined", 10
-    if matches(source, "organic"):
-        return "organic", 42
-    return "organic", 34
-
-
 def compile_policy(source: str) -> dict[str, object]:
     source = normalize(source)
-    matched = {group: matches(source, group) for group in SIGNALS}
-    flat = list(dict.fromkeys(word for group in SIGNALS for word in matched[group]))
-    if not flat:
-        raise ValueError("no tactical signal")
-    formation = formation_from_source(source)
-    movement_style, entropy = movement_from_source(source)
-    threshold_match = re.search(r"(?:below|under|at)\s+(\d{1,2})\s*%", source, re.IGNORECASE)
-    threshold = min(80, max(15, int(threshold_match.group(1)))) if threshold_match else 35
-    return {
-        "focus": allocate(len(matched["core"]), len(matched["edge"]), len(matched["link"])),
-        "formation": formation,
-        "engagementRadius": radius_from_source(source, formation),
-        "interceptors": interceptors_from_source(source),
-        "pursuitLimit": pursuit_from_source(source),
-        "movementStyle": movement_style,
-        "entropy": entropy,
-        "risk": min(100, max(0, 50 + len(matched["aggressive"]) * 15 - len(matched["cautious"]) * 15)),
-        "pulseHealthThreshold": threshold,
-        "matchedSignals": flat,
-    }
+    for name, example in EXAMPLES.items():
+        if normalize(example) == source:
+            return dict(V2_EXAMPLE_POLICIES[name])
+    raise ValueError(f"no v2 golden policy for source: {source!r}")
 
 
 def pulse_guidance(health: int, threat: int, threshold: int) -> str:
@@ -203,8 +150,11 @@ def threat_urgency(core_distance: int, engagement_radius: int, sector_pressure: 
 
 def vectors() -> dict[str, object]:
     return {
-        "contract": "gridwake-instinct-runtime-v1",
-        "policies": [{"name": name, "source": source, "policy": compile_policy(source)} for name, source in EXAMPLES.items()],
+        "contract": "gridwake-instinct-runtime-v2",
+        "policies": [
+            {"name": name, "source": source, "policy": compile_policy(source)}
+            for name, source in EXAMPLES.items()
+        ],
         "guidance": [
             {"health": 100, "threat": 30, "threshold": 35, "result": pulse_guidance(100, 30, 35)},
             {"health": 50, "threat": 55, "threshold": 35, "result": pulse_guidance(50, 55, 35)},

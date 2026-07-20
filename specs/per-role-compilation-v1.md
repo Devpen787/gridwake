@@ -1,14 +1,15 @@
 # Per-role compilation v1 — multiplayer authorship
 
+> **Runtime note (instinct-v2):** each contribution compiles via `compileRoleScoped`
+> (`local-instinct-v2`). Ownership of dials is unchanged; cross-role wording yields
+> warnings instead of silently mutating another role’s fields. Compiler label on
+> composed strategies is `local-instinct-v2`.
+
 ## Current truth
 
 The lobby promises role ownership ("GUARDIAN · FORMATION + CORE", "SCOUT · THREATS +
-PURSUIT", "MENDER · TRAILS + REPAIR") but the launch branch of `applyRoomCommand`
-concatenates every member's sentence into one `combinedSource` and compiles it as a
-single blended strategy. Consequences: one player's "do not chase" zeroes pursuit for
-the squad, the first interceptor-count match wins regardless of author, and no player
-owns the dials their role card advertises. Zero-signal instincts are only caught at
-launch (as an uncaught compile throw), not when the player locks in.
+PURSUIT", "MENDER · TRAILS + REPAIR"). Launch uses `composeSquadStrategy` to compile
+each member's sentence under enforced role scope and assemble one squad policy.
 
 ## Delta in this slice
 

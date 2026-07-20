@@ -3,6 +3,7 @@ import golden from "../validation/causal_strategy_golden.json";
 import {
   activatePulse,
   advanceTick,
+  conditionActive,
   createInitialState,
   createReceipt,
   exposureDamage,
@@ -19,6 +20,8 @@ import { compileStrategy, DEFAULT_STRATEGY, STRATEGY_EXAMPLES } from "../src/gam
 import {
   GRID_COLUMNS,
   GRID_ROWS,
+  CORE_X,
+  CORE_Y,
   LOOKAHEAD_CELLS,
   PULSE_CLEAR_CAP,
   PULSE_SHIELD_TICKS,
@@ -179,7 +182,11 @@ describe("GRIDWAKE local deterministic engine", () => {
   it("stages for a predicted breach while keeping zero-pursuit clears inside the protected radius", () => {
     const ring = compileStrategy("Circle the light precisely, send two units within 10%, and do not chase.");
     let state = createInitialState(5, ring, 20);
-    const stagedThreat = `${15 + ring.policy.engagementRadius + LOOKAHEAD_CELLS}:9`;
+    const intercept = ring.plan?.directives.find((directive) => directive.action === "intercept");
+    const threatWithin = intercept?.condition.kind === "threat-within"
+      ? intercept.condition.cells
+      : ring.policy.engagementRadius + ring.policy.pursuitLimit + LOOKAHEAD_CELLS;
+    const stagedThreat = `${CORE_X + Math.min(threatWithin, ring.policy.engagementRadius)}:${CORE_Y}`;
     state = { ...state, corruption: new Set([stagedThreat]) };
     state = advanceTick(state);
     state = advanceTick(state);
@@ -189,10 +196,10 @@ describe("GRIDWAKE local deterministic engine", () => {
     state = {
       ...state,
       tick: 5,
-      corruption: new Set([`${15 + ring.policy.engagementRadius + 1}:9`]),
+      corruption: new Set([`${CORE_X + ring.policy.engagementRadius + 1}:${CORE_Y}`]),
     };
     const advanced = advanceTick(state);
-    expect(advanced.corruption.has(`${15 + ring.policy.engagementRadius + 1}:9`)).toBe(true);
+    expect(advanced.corruption.has(`${CORE_X + ring.policy.engagementRadius + 1}:${CORE_Y}`)).toBe(true);
   });
 
   it("keeps Pulse clears separate from trail repairs in state and receipt", () => {
@@ -241,5 +248,48 @@ describe("GRIDWAKE local deterministic engine", () => {
     expect(state.health).toBeLessThan(100);
     expect(exposureDamage(70, 0, 15)).toBe(2);
     expect(exposureDamage(70, 2, 15)).toBe(0);
+  });
+
+  it("Edge Hunter A/B: highest-pressure targeting diverges from nearest-breach", () => {
+    const edgeHunter = compileStrategy(STRATEGY_EXAMPLES[1].source);
+    const nearestBreach = compileStrategy(
+      "Spread wide and intercept the nearest breach with all three units aggressively and unpredictably.",
+    );
+    expect(edgeHunter.plan?.directives[0]?.target).toBe("highest-pressure-sector");
+    expect(nearestBreach.plan?.directives.some((directive) => directive.target === "nearest-breach")).toBe(true);
+
+    const seed = 2_654_483_283;
+    const run = (compiled: ReturnType<typeof compileStrategy>) => (
+      runToEnd(createInitialState(seed, compiled, 120))
+    );
+    const pressureRun = run(edgeHunter);
+    const nearestRun = run(nearestBreach);
+    const path = (round: ReturnType<typeof run>) => round.lights
+      .map((light) => light.trail.map((point) => `${point.x}:${point.y}`).join(","))
+      .join("|");
+
+    expect(path(pressureRun)).not.toBe(path(nearestRun));
+    expect(pressureRun.attribution?.entries.some((entry) => entry.action === "INTERCEPT TARGET")).toBe(true);
+    expect(pressureRun.attribution?.entries.some((entry) => entry.detail.includes("highest-pressure"))).toBe(true);
+  });
+
+  it("initialises attribution and stores the canonical plan on engine state", () => {
+    const compiled = compileStrategy(STRATEGY_EXAMPLES[1].source);
+    const initial = createInitialState(42, compiled, 60);
+    expect(initial.attribution).toEqual({ entries: [] });
+    expect(initial.plan?.version).toBe("instinct-v2");
+    expect(initial.plan?.directives.length).toBeGreaterThan(0);
+  });
+
+  it("evaluates phase and health conditions for directive activation", () => {
+    const regroup = compileStrategy("During collapse, regroup close to the light.");
+    let state = createInitialState(99, regroup, 400);
+    const regroupDirective = regroup.plan?.directives.find((directive) => directive.action === "regroup");
+    expect(regroupDirective?.condition.kind).toBe("phase");
+
+    state = { ...state, tick: 341 };
+    expect(conditionActive(regroupDirective!.condition, state)).toBe(true);
+    state = advanceTick(state);
+    expect(state.lights.some((light) => light.reason.includes("REGROUP"))).toBe(true);
   });
 });

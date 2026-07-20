@@ -1,3 +1,9 @@
+import type {
+  CanonicalDirective,
+  CanonicalStrategyPlan,
+  StrategyCondition,
+  StrategyTarget,
+} from "./instinct/types";
 import {
   CORE_X,
   CORE_Y,
@@ -9,6 +15,8 @@ import {
   PULSE_CLEAR_CAP,
   PULSE_SHIELD_TICKS,
   ROUND_TICKS,
+  type AttributionEntry,
+  type AttributionSource,
   type ClearResolution,
   type CompiledStrategy,
   type EngineState,
@@ -18,6 +26,7 @@ import {
   type LightState,
   type ManualIntent,
   type Point,
+  type RoundAttribution,
   type RoundPhase,
   type RoundReceipt,
   type StrategyPolicy,
@@ -103,6 +112,8 @@ export function createInitialState(
     maxTicks,
     health: 100,
     policy: strategy.policy,
+    plan: strategy.plan,
+    interpretation: strategy.interpretation,
     corruption,
     lights,
     repairs: [],
@@ -121,7 +132,152 @@ export function createInitialState(
     possessedLightId: null,
     manualIntent: null,
     overrideTicksRemaining: OVERRIDE_MAX_TICKS,
+    attribution: { entries: [] },
   };
+}
+
+const ATTRIBUTION_ENTRY_CAP = 40;
+
+type AttributionBuilder = {
+  entries: AttributionEntry[];
+  aggregates: Map<string, { entryIndex: number; count: number; baseDetail: string }>;
+};
+
+function createAttributionBuilder(existing?: RoundAttribution): AttributionBuilder {
+  return { entries: [...(existing?.entries ?? [])], aggregates: new Map() };
+}
+
+function finalizeAttribution(builder: AttributionBuilder): RoundAttribution {
+  return { entries: builder.entries };
+}
+
+function evidenceForDirective(state: EngineState, directiveIndex: number): string | undefined {
+  const evidence = state.interpretation?.evidenceByDirective.find(
+    (entry) => entry.directiveIndex === directiveIndex,
+  );
+  const span = evidence?.spans[0]?.text;
+  return span ? `"${span}"` : undefined;
+}
+
+function attributionSourceForDirective(state: EngineState, directiveIndex: number): AttributionSource {
+  const evidence = state.interpretation?.evidenceByDirective.find(
+    (entry) => entry.directiveIndex === directiveIndex,
+  );
+  if (evidence?.provenance === "stated") return "player";
+  if (evidence?.provenance === "default") return "default";
+  return "inferred";
+}
+
+function recordAttribution(
+  builder: AttributionBuilder,
+  entry: AttributionEntry,
+  aggregateKey?: string,
+): void {
+  if (aggregateKey) {
+    const existing = builder.aggregates.get(aggregateKey);
+    if (existing) {
+      existing.count += 1;
+      builder.entries[existing.entryIndex] = {
+        ...builder.entries[existing.entryIndex],
+        tick: entry.tick,
+        detail: `${existing.baseDetail} ×${existing.count}`,
+      };
+      return;
+    }
+    builder.entries.push(entry);
+    builder.aggregates.set(aggregateKey, {
+      entryIndex: builder.entries.length - 1,
+      count: 1,
+      baseDetail: entry.detail,
+    });
+  } else {
+    builder.entries.push(entry);
+  }
+  while (builder.entries.length > ATTRIBUTION_ENTRY_CAP) {
+    builder.entries.shift();
+    builder.aggregates.clear();
+    builder.entries.forEach((item, index) => {
+      const match = /^(.*) ×\d+$/.exec(item.detail);
+      if (match) {
+        builder.aggregates.set(item.action, {
+          entryIndex: index,
+          count: Number.parseInt(item.detail.split("×")[1]?.trim() ?? "1", 10),
+          baseDetail: match[1],
+        });
+      }
+    });
+  }
+}
+
+/** Evaluate a canonical directive condition against live engine state. */
+export function conditionActive(condition: StrategyCondition, state: EngineState): boolean {
+  switch (condition.kind) {
+    case "always":
+      return true;
+    case "core-health-below":
+      return state.health < condition.percent;
+    case "threat-within":
+      return [...state.corruption].some(
+        (key) => manhattan(parseCellKey(key), CORE_POINT) <= condition.cells,
+      );
+    case "phase":
+      return phaseForTick(state.tick) === condition.phase;
+    default: {
+      const _exhaustive: never = condition;
+      return _exhaustive;
+    }
+  }
+}
+
+function activeDirective(
+  plan: CanonicalStrategyPlan,
+  state: EngineState,
+  predicate: (directive: CanonicalDirective) => boolean,
+): { directive: CanonicalDirective; index: number } | null {
+  let best: { directive: CanonicalDirective; index: number } | null = null;
+  plan.directives.forEach((directive, index) => {
+    if (!predicate(directive)) return;
+    if (!conditionActive(directive.condition, state)) return;
+    if (!best || directive.priority < best.directive.priority) {
+      best = { directive, index };
+    }
+  });
+  return best;
+}
+
+function regroupActive(plan: CanonicalStrategyPlan, state: EngineState): boolean {
+  return plan.directives.some(
+    (directive) => directive.action === "regroup" && conditionActive(directive.condition, state),
+  );
+}
+
+function guardianDefensiveActive(plan: CanonicalStrategyPlan, state: EngineState): boolean {
+  return plan.directives.some((directive) => (
+    (directive.actor === "guardian" || directive.actor === "squad")
+    && (directive.action === "hold" || directive.action === "orbit" || directive.action === "screen")
+    && conditionActive(directive.condition, state)
+  ));
+}
+
+function menderRepairActive(plan: CanonicalStrategyPlan, state: EngineState): boolean {
+  return plan.directives.some((directive) => (
+    (directive.actor === "mender" || directive.actor === "squad")
+    && (directive.action === "repair" || directive.target === "shared-trail")
+    && conditionActive(directive.condition, state)
+  ));
+}
+
+function sharedTrailRepairTarget(state: EngineState): Point | null {
+  const candidates: Point[] = [];
+  for (const key of state.corruption) {
+    const point = parseCellKey(key);
+    if (distinctTrailOwnersNear(point, state.lights) >= 2) candidates.push(point);
+  }
+  if (candidates.length === 0) return null;
+  candidates.sort(
+    (a, b) => manhattan(a, CORE_POINT) - manhattan(b, CORE_POINT) || a.y - b.y || a.x - b.x,
+  );
+  return candidates[0] ?? null;
 }
 
 /** Derived round pacing from existing growth thresholds (150 / 330). */
@@ -218,6 +374,7 @@ function targetScore(light: LightState, point: Point, state: EngineState, urgenc
   const coreBias = light.role === "guardian" ? 1.25 : 1;
   const edgeBias = light.role === "scout" ? 1.25 : 1;
   const linkBias = light.role === "mender" ? 1.3 : 1;
+  // Aggressive engagement lowers travel penalty via policy.risk (65 → riskTravel ≈ 0.94).
   const riskTravel = 1.2 - risk * 0.004;
   const bucket = Math.floor(state.tick / 30);
   const rawNoise = hashText(`${state.seed}|${bucket}|${light.id}|${point.x}:${point.y}`) % 2_001;
@@ -231,6 +388,38 @@ function targetScore(light: LightState, point: Point, state: EngineState, urgenc
     tieBreak -
     urgencyBonus
   );
+}
+
+function orderThreatsForTarget(
+  threats: Point[],
+  target: StrategyTarget,
+  state: EngineState,
+  light: LightState,
+  urgencyByCell: ReadonlyMap<string, number>,
+): Point[] {
+  const worst = worstSector(state.corruption);
+  const pool = target === "highest-pressure-sector"
+    ? (() => {
+        const inSector = threats.filter((point) => sectorForPoint(point) === worst);
+        return inSector.length > 0 ? inSector : threats;
+      })()
+    : threats;
+
+  return pool.toSorted((a, b) => {
+    if (target === "highest-urgency-breach") {
+      const urgencyDelta = (urgencyByCell.get(cellKey(b.x, b.y)) ?? 0)
+        - (urgencyByCell.get(cellKey(a.x, a.y)) ?? 0);
+      if (urgencyDelta !== 0) return urgencyDelta;
+    }
+    if (target === "nearest-breach") {
+      const coreDelta = manhattan(a, CORE_POINT) - manhattan(b, CORE_POINT);
+      if (coreDelta !== 0) return coreDelta;
+    }
+    const scoreDelta = targetScore(light, a, state, urgencyByCell.get(cellKey(a.x, a.y)) ?? 0)
+      - targetScore(light, b, state, urgencyByCell.get(cellKey(b.x, b.y)) ?? 0);
+    if (scoreDelta !== 0) return scoreDelta;
+    return a.y - b.y || a.x - b.x;
+  });
 }
 
 function eligibleThreats(state: EngineState): Point[] {
@@ -267,7 +456,7 @@ function radialOffset(direction: Point, radius: number): Point {
   };
 }
 
-export function formationAnchor(state: EngineState, lightIndex: number): Point {
+export function formationAnchor(state: EngineState, lightIndex: number, regroup = false): Point {
   const { formation, engagementRadius, movementStyle, entropy } = state.policy;
   const bucketSize = movementStyle === "erratic" ? 16 : movementStyle === "organic" ? 22 : 30;
   const phase = Math.floor(state.tick / bucketSize);
@@ -275,7 +464,7 @@ export function formationAnchor(state: EngineState, lightIndex: number): Point {
   const wobbleRange = movementStyle === "erratic" ? 2 : movementStyle === "organic" ? 1 : 0;
   const wobble = entropy === 0 ? 0 : Math.round(((noise - 50) / 50) * wobbleRange);
 
-  if (formation === "spread") {
+  if (formation === "spread" && !regroup) {
     const anchors: readonly Point[] = [
       { x: 4, y: 4 },
       { x: GRID_COLUMNS - 5, y: 4 },
@@ -302,7 +491,9 @@ export function formationAnchor(state: EngineState, lightIndex: number): Point {
 
   const directionIndex = (phase + lightIndex * 5 + wobble + RING_DIRECTIONS.length * 4) % RING_DIRECTIONS.length;
   const direction = RING_DIRECTIONS[directionIndex];
-  const radius = Math.max(2, Math.min(7, engagementRadius - 1));
+  const radius = regroup
+    ? Math.max(2, Math.min(4, engagementRadius - 3))
+    : Math.max(2, Math.min(7, engagementRadius - 1));
   const offset = radialOffset(direction, radius);
   return {
     x: clamp(CORE_X + offset.x, 0, GRID_COLUMNS - 1),
@@ -318,10 +509,59 @@ type LightAssignment = Readonly<{
   reason: string;
 }>;
 
-function assignLights(state: EngineState): ReadonlyMap<string, LightAssignment> {
+function canInterceptLight(
+  light: LightState,
+  directive: CanonicalDirective | null,
+  guardianHold: boolean,
+  menderRepair: boolean,
+): boolean {
+  if (light.role === "guardian" && guardianHold) return false;
+  if (light.role === "mender" && menderRepair) return false;
+  if (!directive) return true;
+  if (directive.action !== "intercept") return false;
+  if (directive.actor === "guardian") return false;
+  return directive.actor === "squad" || directive.actor === "scout";
+}
+
+function assignLights(
+  state: EngineState,
+  attribution?: AttributionBuilder,
+): ReadonlyMap<string, LightAssignment> {
   const threats = eligibleThreats(state);
   const assignments = new Map<string, LightAssignment>();
-  if (threats.length > 0) {
+  const plan = state.plan;
+  const regroup = plan ? regroupActive(plan, state) : false;
+  const guardianHold = plan ? guardianDefensiveActive(plan, state) : false;
+  const menderRepair = plan ? menderRepairActive(plan, state) : false;
+  const interceptDirective = plan
+    ? activeDirective(plan, state, (directive) => (
+      directive.action === "intercept"
+      && (directive.actor === "scout" || directive.actor === "squad")
+    ))
+    : null;
+  const hasInterceptDirective = plan?.directives.some((directive) => (
+    directive.action === "intercept"
+    && (directive.actor === "scout" || directive.actor === "squad")
+  )) ?? false;
+  const interceptAllowed = threats.length > 0 && (
+    !plan
+    || (hasInterceptDirective ? interceptDirective !== null : true)
+  );
+
+  if (state.policy.movementStyle === "erratic" && attribution) {
+    recordAttribution(
+      attribution,
+      {
+        tick: state.tick,
+        action: "ERRATIC MOVEMENT",
+        detail: "entropy-driven path variation",
+        source: "inferred",
+      },
+      "erratic-movement",
+    );
+  }
+
+  if (interceptAllowed) {
     const sectorPressure = pressureBySector(state.corruption);
     const urgencyByCell = new Map(threats.map((point) => [
       cellKey(point.x, point.y),
@@ -331,24 +571,68 @@ function assignLights(state: EngineState): ReadonlyMap<string, LightAssignment> 
         sectorPressure[sectorForPoint(point)],
       ),
     ]));
+    const targetPreference = interceptDirective?.directive.target ?? "nearest-breach";
+    const responderLimit = interceptDirective?.directive.responderCount ?? state.policy.interceptors;
     const lightOrder = state.lights
       .map((light, index) => ({
         light,
         index,
         distance: Math.min(...threats.map((point) => manhattan(light, point))),
       }))
-      .filter(({ light }) => light.id !== state.possessedLightId)
+      .filter(({ light }) => (
+        light.id !== state.possessedLightId
+        && canInterceptLight(
+          light,
+          interceptDirective?.directive ?? null,
+          guardianHold,
+          menderRepair,
+        )
+      ))
       .toSorted((a, b) => a.distance - b.distance || a.index - b.index);
-    const remaining = [...threats];
-    for (const { light } of lightOrder.slice(0, state.policy.interceptors)) {
-      const ordered = remaining.toSorted(
-        (a, b) => (
-          targetScore(light, a, state, urgencyByCell.get(cellKey(a.x, a.y)) ?? 0) -
-          targetScore(light, b, state, urgencyByCell.get(cellKey(b.x, b.y)) ?? 0) ||
-          a.y - b.y ||
-          a.x - b.x
-        ),
+
+    if (interceptDirective && targetPreference === "highest-pressure-sector" && attribution) {
+      const worst = worstSector(state.corruption);
+      recordAttribution(
+        attribution,
+        {
+          tick: state.tick,
+          action: "INTERCEPT TARGET",
+          detail: `highest-pressure sector S${worst + 1}`,
+          source: attributionSourceForDirective(state, interceptDirective.index),
+          directiveIndex: interceptDirective.index,
+          evidence: evidenceForDirective(state, interceptDirective.index),
+        },
+        `intercept-pressure-${interceptDirective.index}`,
       );
+    }
+
+    if (interceptDirective && attribution) {
+      recordAttribution(
+        attribution,
+        {
+          tick: state.tick,
+          action: "RESPONDER AUTHORIZATION",
+          detail: `${Math.min(responderLimit, lightOrder.length)} interceptors authorized`,
+          source: attributionSourceForDirective(state, interceptDirective.index),
+          directiveIndex: interceptDirective.index,
+          evidence: evidenceForDirective(state, interceptDirective.index),
+        },
+        `responders-${interceptDirective.index}`,
+      );
+    }
+
+    const remaining = [...threats];
+    for (const { light } of lightOrder.slice(0, responderLimit)) {
+      const ordered = interceptDirective
+        ? orderThreatsForTarget(remaining, targetPreference, state, light, urgencyByCell)
+        : remaining.toSorted(
+          (a, b) => (
+            targetScore(light, a, state, urgencyByCell.get(cellKey(a.x, a.y)) ?? 0) -
+            targetScore(light, b, state, urgencyByCell.get(cellKey(b.x, b.y)) ?? 0) ||
+            a.y - b.y ||
+            a.x - b.x
+          ),
+        );
       const target = ordered[0] ?? threats[0];
       assignments.set(light.id, {
         target,
@@ -362,18 +646,55 @@ function assignLights(state: EngineState): ReadonlyMap<string, LightAssignment> 
       const uniqueIndex = remaining.findIndex((point) => point.x === target.x && point.y === target.y);
       if (uniqueIndex >= 0 && remaining.length > 1) remaining.splice(uniqueIndex, 1);
     }
+  } else if (plan && hasInterceptDirective && !interceptDirective && attribution && threats.length > 0) {
+    recordAttribution(
+      attribution,
+      {
+        tick: state.tick,
+        action: "INTERCEPT DORMANT",
+        detail: "directive condition inactive — formation fallback",
+        source: "inferred",
+      },
+      "intercept-dormant",
+    );
   }
+
   state.lights.forEach((light, index) => {
-    if (!assignments.has(light.id)) {
-      const target = formationAnchor(state, index);
+    if (assignments.has(light.id)) return;
+
+    if (light.role === "guardian" && guardianHold) {
+      const target = formationAnchor(state, index, regroup);
       assignments.set(light.id, {
         target,
         mode: "formation",
         urgency: 0,
         sector: sectorForPoint(target),
-        reason: `FORMATION · ${state.policy.formation.toUpperCase()}`,
+        reason: regroup ? "REGROUP · CORE RING" : `GUARD · ${state.policy.formation.toUpperCase()}`,
       });
+      return;
     }
+
+    if (light.role === "mender" && menderRepair) {
+      const repairTarget = sharedTrailRepairTarget(state);
+      const target = repairTarget ?? formationAnchor(state, index, regroup);
+      assignments.set(light.id, {
+        target,
+        mode: "formation",
+        urgency: repairTarget ? 40 : 0,
+        sector: sectorForPoint(target),
+        reason: repairTarget ? "MENDER · SHARED TRAIL REPAIR" : `FORMATION · ${state.policy.formation.toUpperCase()}`,
+      });
+      return;
+    }
+
+    const target = formationAnchor(state, index, regroup);
+    assignments.set(light.id, {
+      target,
+      mode: "formation",
+      urgency: 0,
+      sector: sectorForPoint(target),
+      reason: regroup ? "REGROUP · CORE RING" : `FORMATION · ${state.policy.formation.toUpperCase()}`,
+    });
   });
   return assignments;
 }
@@ -438,6 +759,9 @@ function resolveRepairs(
   lights: readonly LightState[],
   tick: number,
   policy: StrategyPolicy,
+  plan: CanonicalStrategyPlan | undefined,
+  state: EngineState,
+  attribution?: AttributionBuilder,
 ): { corruption: Set<string>; repairPoints: Point[] } {
   const repairInterval = policy.focus.link >= 50 ? 10 : policy.focus.link >= 25 ? 15 : 20;
   if (tick % repairInterval !== 0) return { corruption, repairPoints: [] };
@@ -454,10 +778,41 @@ function resolveRepairs(
   );
   const bounded = repairPoints.slice(0, 1);
   bounded.forEach((point) => remaining.delete(cellKey(point.x, point.y)));
-  return { corruption: remaining, repairPoints: bounded };
+  if (bounded.length > 0 && attribution) {
+    const menderDirective = plan
+      ? activeDirective(plan, state, (directive) => (
+        (directive.actor === "mender" || directive.actor === "squad")
+        && (directive.action === "repair" || directive.target === "shared-trail")
+      ))
+      : null;
+    recordAttribution(
+      attribution,
+      {
+        tick,
+        action: "TRAIL REPAIR",
+        detail: menderDirective ? "shared-trail directive repair" : "default trail stitch",
+        source: menderDirective
+          ? attributionSourceForDirective(state, menderDirective.index)
+          : "default",
+        directiveIndex: menderDirective?.index,
+        evidence: menderDirective
+          ? evidenceForDirective(state, menderDirective.index)
+          : undefined,
+      },
+      menderDirective ? `repair-directive-${menderDirective.index}` : "repair-default",
+    );
+  }
+  return {
+    corruption: remaining,
+    repairPoints: bounded,
+  };
 }
 
-function moveLights(state: EngineState, rngState: number): {
+function moveLights(
+  state: EngineState,
+  rngState: number,
+  attribution?: AttributionBuilder,
+): {
   lights: LightState[];
   rngState: number;
   replayHash: number;
@@ -466,7 +821,7 @@ function moveLights(state: EngineState, rngState: number): {
   if (state.tick % 2 !== 0) {
     return { lights: [...state.lights], rngState, replayHash: state.replayHash, manualIntent: state.manualIntent };
   }
-  const assignments = assignLights(state);
+  const assignments = assignLights(state, attribution);
   const occupied = new Set<string>();
   let replayHash = state.replayHash;
   let consumedManual = false;
@@ -702,6 +1057,7 @@ export function advanceTick(state: EngineState): EngineState {
   const wasPossessed = state.possessedLightId !== null;
   let overrideTicksRemaining = state.overrideTicksRemaining;
   let replayBase = state.replayHash;
+  const attributionBuilder = createAttributionBuilder(state.attribution);
 
   if (wasPossessed) {
     overrideTicksRemaining = Math.max(0, overrideTicksRemaining - 1);
@@ -719,9 +1075,17 @@ export function advanceTick(state: EngineState): EngineState {
     overrideTicksRemaining,
     replayHash: replayBase,
   };
-  const moved = moveLights(provisional, grown.rngState);
+  const moved = moveLights(provisional, grown.rngState, attributionBuilder);
   const cleared = resolveIntercepts(grown.corruption, moved.lights, tick, state.policy);
-  const repaired = resolveRepairs(cleared.corruption, moved.lights, tick, state.policy);
+  const repaired = resolveRepairs(
+    cleared.corruption,
+    moved.lights,
+    tick,
+    state.policy,
+    state.plan,
+    provisional,
+    attributionBuilder,
+  );
   const pulseShielded = state.pulse.shieldUntilTick !== null && tick <= state.pulse.shieldUntilTick;
   const damage = pulseShielded ? 0 : coreDamage(repaired.corruption, moved.lights, tick);
   const health = clamp(state.health - damage, 0, 100);
@@ -742,6 +1106,16 @@ export function advanceTick(state: EngineState): EngineState {
   if (damage > 0) {
     lastEvent = { tick, kind: "damage", message: `CORE HIT · -${damage} HEALTH` };
   } else if (cleared.manualPoints.length > 0) {
+    recordAttribution(
+      attributionBuilder,
+      {
+        tick,
+        action: "OVERRIDE CLEAR",
+        detail: `${cleared.manualPoints.length} corruption cleared manually`,
+        source: "override",
+      },
+      "override-clear",
+    );
     lastEvent = {
       tick,
       kind: "intercept",
@@ -780,6 +1154,7 @@ export function advanceTick(state: EngineState): EngineState {
     manualIntent: moved.manualIntent,
     overrideTicksRemaining,
     possessedLightId: state.possessedLightId,
+    attribution: finalizeAttribution(attributionBuilder),
   };
 
   if (wasPossessed && overrideTicksRemaining === 0) {
@@ -807,21 +1182,41 @@ export function advanceTick(state: EngineState): EngineState {
 
 export function activatePulse(state: EngineState): EngineState {
   if (state.ended || !state.pulse.available) return state;
+  const pulseTarget = state.plan?.pulseGuidance.target ?? "highest-pressure-sector";
   const sector = worstSector(state.corruption);
   const center = sectorCenter(sector);
   const corruption = new Set(state.corruption);
   const targets = [...state.corruption]
     .map(parseCellKey)
-    .filter((point) => sectorForPoint(point) === sector)
+    .filter((point) => (
+      pulseTarget === "nearest-core-breach"
+        ? true
+        : sectorForPoint(point) === sector
+    ))
     .toSorted((a, b) => (
       manhattan(a, CORE_POINT) - manhattan(b, CORE_POINT) ||
-      manhattan(a, center) - manhattan(b, center) ||
+      (pulseTarget === "highest-pressure-sector"
+        ? manhattan(a, center) - manhattan(b, center)
+        : 0) ||
       a.y - b.y ||
       a.x - b.x
     ))
     .slice(0, PULSE_CLEAR_CAP);
   targets.forEach((point) => corruption.delete(cellKey(point.x, point.y)));
   const cleared = targets.length;
+  const attributionBuilder = createAttributionBuilder(state.attribution);
+  recordAttribution(
+    attributionBuilder,
+    {
+      tick: state.tick,
+      action: "PULSE CLEAR",
+      detail: pulseTarget === "nearest-core-breach"
+        ? "nearest core breach sweep"
+        : `sector S${sector + 1} pressure sweep`,
+      source: "pulse",
+    },
+    "pulse-clear",
+  );
   return {
     ...state,
     corruption,
@@ -830,7 +1225,7 @@ export function activatePulse(state: EngineState): EngineState {
       usedAtTick: state.tick,
       x: center.x,
       y: center.y,
-      sector,
+      sector: pulseTarget === "nearest-core-breach" ? null : sector,
       cleared,
       shieldUntilTick: state.tick + PULSE_SHIELD_TICKS,
     },
@@ -841,6 +1236,7 @@ export function activatePulse(state: EngineState): EngineState {
     pulseClears: state.pulseClears + cleared,
     lastEvent: { tick: state.tick, kind: "pulse", message: `PULSE S${sector + 1} · ${cleared} CLEARED · 1.2S SHIELD` },
     replayHash: hashEvent(state.replayHash, `pulse|${state.tick}|${sector}|${cleared}`),
+    attribution: finalizeAttribution(attributionBuilder),
   };
 }
 
