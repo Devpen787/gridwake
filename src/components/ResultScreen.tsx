@@ -1,14 +1,21 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { gameAudio } from "../audio/audioDirector";
-import { createReceipt } from "../game/engine";
 import { recommendationFor, resultSummary } from "../game/analysis";
-import type { CompiledStrategy, EngineState } from "../game/types";
+import {
+  compareReceipts,
+  deltaTone,
+  formatReceiptShareText,
+  formatSignedDelta,
+} from "../game/comparison";
+import { createReceipt } from "../game/engine";
+import type { CompiledStrategy, EngineState, RoundReceipt } from "../game/types";
 import { AudioToggle } from "./AudioToggle";
 import { CoreMark } from "./CoreMark";
 
 type ResultScreenProps = Readonly<{
   state: EngineState;
   strategy: CompiledStrategy;
+  previousReceipt?: RoundReceipt | null;
   onTuneSameGrid: () => void;
   onNewGrid: () => void;
   onLeave: () => void;
@@ -22,9 +29,28 @@ type HeroStat = Readonly<{
   value: number;
 }>;
 
+type CopyState = "idle" | "copied" | "error";
+
+async function copyText(text: string): Promise<void> {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+  const field = document.createElement("textarea");
+  field.value = text;
+  field.style.position = "fixed";
+  field.style.opacity = "0";
+  document.body.appendChild(field);
+  field.select();
+  const copied = document.execCommand("copy");
+  field.remove();
+  if (!copied) throw new Error("Copy command failed.");
+}
+
 export function ResultScreen({
   state,
   strategy,
+  previousReceipt = null,
   onTuneSameGrid,
   onNewGrid,
   onLeave,
@@ -34,7 +60,11 @@ export function ResultScreen({
 }: ResultScreenProps) {
   const receipt = createReceipt(state, strategy);
   const held = receipt.outcome === "grid-held";
+  const [copyState, setCopyState] = useState<CopyState>("idle");
   const resultSoundPlayed = useRef(false);
+  const deltas = previousReceipt
+    ? compareReceipts(receipt, previousReceipt)
+    : [];
   const heroStats: readonly HeroStat[] = [
     { label: "INTERCEPTS", value: receipt.interceptClears },
     { label: "REPAIRS", value: receipt.trailRepairs },
@@ -112,6 +142,23 @@ export function ResultScreen({
           </p>
         </div>
 
+        {deltas.length > 0 ? (
+          <section className="attempt-comparison" aria-label="Comparison with last attempt">
+            <span>VS LAST ATTEMPT</span>
+            <ul>
+              {deltas.map((delta) => (
+                <li
+                  key={delta.key}
+                  className={`attempt-comparison--${deltaTone(delta.value)}`}
+                >
+                  <small>{delta.label}</small>
+                  <strong>{formatSignedDelta(delta.value)}</strong>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
         <footer className="result__meta">
           <span>SEED {receipt.seed}</span>
           <span>REPLAY {receipt.replayHash}</span>
@@ -129,6 +176,25 @@ export function ResultScreen({
               NEW GRID
             </button>
           )}
+          <button
+            className="secondary-action receipt-copy"
+            type="button"
+            onClick={() => {
+              setCopyState("idle");
+              void copyText(formatReceiptShareText(receipt))
+                .then(() => {
+                  setCopyState("copied");
+                  window.setTimeout(() => setCopyState("idle"), 1_500);
+                })
+                .catch(() => setCopyState("error"));
+            }}
+          >
+            {copyState === "copied"
+              ? "COPIED"
+              : copyState === "error"
+                ? "COPY FAILED"
+                : "COPY RECEIPT"}
+          </button>
           <button className={multiplayer ? "primary-action" : "secondary-action"} type="button" onClick={onLeave}>
             {multiplayer ? "LEAVE ROOM" : "LEAVE GRID"}
           </button>

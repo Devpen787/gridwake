@@ -6,8 +6,8 @@ import { LobbyScreen } from "./components/LobbyScreen";
 import { ProgramScreen } from "./components/ProgramScreen";
 import { ResultScreen } from "./components/ResultScreen";
 import { RoomEntryScreen } from "./components/RoomEntryScreen";
-import { createInitialState } from "./game/engine";
-import type { CompiledStrategy, EngineState } from "./game/types";
+import { createInitialState, createReceipt } from "./game/engine";
+import type { CompiledStrategy, EngineState, RoundReceipt } from "./game/types";
 import { createRoom, normalizeRoomCode, roomCodeFromEntropy } from "./multiplayer/room";
 import type { PeerRoomCommand, PeerRoomSession } from "./multiplayer/peerTransport";
 import type { RoomState } from "./multiplayer/types";
@@ -27,6 +27,7 @@ export function App() {
   const [roundState, setRoundState] = useState<EngineState | null>(null);
   const [roundNumber, setRoundNumber] = useState(1);
   const [roundSeedOverride, setRoundSeedOverride] = useState<number | null>(null);
+  const [previousReceipt, setPreviousReceipt] = useState<RoundReceipt | null>(null);
   const [roomMode, setRoomMode] = useState<"create" | "join">("create");
   const [roomState, setRoomState] = useState<RoomState | null>(null);
   const [roomActorId, setRoomActorId] = useState<string | null>(null);
@@ -84,15 +85,19 @@ export function App() {
   }, []);
 
   const newGrid = useCallback(() => {
+    setPreviousReceipt(null);
     setRoundNumber((current) => current + 1);
     setRoundState(null);
     setStage("program");
   }, []);
 
   const tuneSameGrid = useCallback(() => {
+    if (roundState?.ended && strategy) {
+      setPreviousReceipt(createReceipt(roundState, strategy));
+    }
     setRoundState(null);
     setStage("program");
-  }, []);
+  }, [roundState, strategy]);
 
   const returnHome = useCallback(() => {
     const code = roomState?.code;
@@ -100,6 +105,7 @@ export function App() {
     roomSession.current = null;
     setStrategy(null);
     setRoundState(null);
+    setPreviousReceipt(null);
     setRoundSeedOverride(null);
     setRoomState(null);
     setRoomActorId(null);
@@ -245,6 +251,7 @@ export function App() {
         <ResultScreen
           state={roundState}
           strategy={strategy}
+          previousReceipt={roomState ? null : previousReceipt}
           onLeave={returnHome}
           onNewGrid={newGrid}
           onTuneSameGrid={tuneSameGrid}
