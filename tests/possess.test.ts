@@ -80,4 +80,43 @@ describe("possess light override", () => {
     const empty = queueManualIntent(state, { dx: 0, dy: 0 });
     expect(empty).toBe(state);
   });
+
+  it("clears nearby edge corruption while possessed even outside the Instinct bubble", () => {
+    const ring = compileStrategy(
+      "Guard the core in a tight disciplined ring. Send two units within 25% and do not chase. Pulse below 45% health.",
+    );
+    let state = createInitialState(11, ring, 80);
+    expect(state.policy.engagementRadius + state.policy.pursuitLimit).toBeLessThan(10);
+    const lightId = state.lights[0].id;
+    const edgeKey = [...state.corruption].find((key) => {
+      const point = key.includes(":")
+        ? { x: Number(key.split(":")[0]), y: Number(key.split(":")[1]) }
+        : { x: 0, y: 0 };
+      return Math.abs(point.x - 15) + Math.abs(point.y - 9) > 10;
+    });
+    expect(edgeKey).toBeTruthy();
+    const [edgeX, edgeY] = edgeKey!.split(":").map(Number);
+    state = setPossession(state, lightId);
+    state = {
+      ...state,
+      lights: state.lights.map((light) =>
+        light.id === lightId
+          ? {
+              ...light,
+              x: edgeX,
+              y: edgeY,
+              previousX: edgeX,
+              previousY: edgeY,
+              mode: "manual" as const,
+              trail: [{ x: edgeX, y: edgeY }],
+            }
+          : light
+      ),
+    };
+    while (state.tick % 4 !== 3) state = advanceTick(state);
+    expect(state.corruption.has(edgeKey!)).toBe(true);
+    state = advanceTick(state);
+    expect(state.corruption.has(edgeKey!)).toBe(false);
+    expect(state.interceptClears).toBeGreaterThan(0);
+  });
 });

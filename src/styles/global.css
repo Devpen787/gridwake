@@ -364,6 +364,86 @@ button:disabled { cursor: not-allowed; }
   color: var(--core);
   text-shadow: 0 0 18px rgba(244,247,255,.35);
 }
+
+.possess-roster {
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  max-width: min(420px, calc(100vw - 32px));
+}
+
+.possess-roster__label {
+  color: #60717d;
+  font-size: .45rem;
+  letter-spacing: .16em;
+}
+
+.possess-roster--engaged .possess-roster__label {
+  color: var(--core);
+}
+
+.possess-roster__keys {
+  display: flex;
+  gap: 8px;
+}
+
+.possess-key {
+  display: grid;
+  grid-template-columns: auto auto;
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: 7px;
+  row-gap: 2px;
+  min-width: 92px;
+  min-height: 44px;
+  padding: 7px 10px;
+  border: 1px solid rgba(244, 247, 255, .14);
+  background: rgba(3, 6, 10, .72);
+  color: #8fa0ac;
+  cursor: pointer;
+}
+
+.possess-key strong {
+  font-size: .78rem;
+  font-weight: 500;
+  letter-spacing: .08em;
+  color: var(--light-color, var(--signal));
+}
+
+.possess-key__swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 1px;
+  background: var(--light-color, var(--signal));
+  box-shadow: 0 0 10px color-mix(in srgb, var(--light-color, var(--signal)) 55%, transparent);
+}
+
+.possess-key small {
+  grid-column: 1 / -1;
+  color: #667782;
+  font-size: .42rem;
+  letter-spacing: .12em;
+}
+
+.possess-key--active,
+.possess-key[aria-pressed="true"] {
+  border-color: var(--light-color, var(--core));
+  background: rgba(244, 247, 255, .06);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--light-color, var(--core)) 28%, transparent);
+}
+
+.possess-key--active small,
+.possess-key[aria-pressed="true"] small {
+  color: #c5d0d8;
+}
+
+.possess-key:disabled {
+  opacity: .35;
+  cursor: default;
+}
+
 .pulse-action {
   pointer-events: auto;
   min-width: 240px;
@@ -646,6 +726,8 @@ button:disabled { cursor: not-allowed; }
   .health-track { width: 90px; }
   .pixi-arena-shell { inset: 88px 0 120px; }
   .pulse-action { width: min(100%, 330px); min-width: 0; gap: 14px; }
+  .possess-roster__keys { width: 100%; justify-content: center; }
+  .possess-key { flex: 1 1 0; min-width: 0; }
   .result { display: block; padding: 76px 16px 28px; }
   .result__center { margin: 0 auto; }
   .result .core-mark--large { width: 96px; height: 96px; }

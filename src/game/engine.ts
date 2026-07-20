@@ -531,9 +531,15 @@ function resolveIntercepts(
   const clearPoints: Point[] = [];
   const maximumClearRange = policy.engagementRadius + policy.pursuitLimit;
   for (const light of lights.filter((candidate) => candidate.mode === "intercept" || candidate.mode === "manual")) {
+    // Manual override clears any nearby breach (within 3). Autopilot interceptors
+    // still respect the Instinct engagement bubble around the core.
     const target = [...remaining]
       .map(parseCellKey)
-      .filter((point) => manhattan(light, point) <= 3 && manhattan(point, CORE_POINT) <= maximumClearRange)
+      .filter((point) => {
+        if (manhattan(light, point) > 3) return false;
+        if (light.mode === "manual") return true;
+        return manhattan(point, CORE_POINT) <= maximumClearRange;
+      })
       .toSorted((a, b) => (
         manhattan(a, CORE_POINT) - manhattan(b, CORE_POINT) ||
         manhattan(light, a) - manhattan(light, b) ||

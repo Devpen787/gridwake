@@ -33,7 +33,7 @@ export function ControlsHint({ visible, allowPossess, onDismiss }: ControlsHintP
         <span>CONTROLS</span>
         <strong>
           {allowPossess
-            ? "1–3 POSSESS · WASD MOVE · ESC RELEASE · SPACE PULSE"
+            ? "1 CYAN · 2 AMBER · 3 VIOLET · WASD · ESC · SPACE"
             : "SPACE PULSE"}
         </strong>
       </div>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { gameAudio } from "../audio/audioDirector";
 import {
   activatePulse,
@@ -48,6 +48,10 @@ function currentIntention(state: EngineState): string {
   const intercepting = state.lights.find((light) => light.mode === "intercept");
   if (intercepting) return intercepting.intention;
   return state.lights[0]?.intention ?? "HOLD FORMATION";
+}
+
+function colorCss(color: number): string {
+  return `#${color.toString(16).padStart(6, "0")}`;
 }
 
 function possessLabel(state: EngineState): string | null {
@@ -329,8 +333,45 @@ export function GameScreen({
         </div>
       </header>
       <footer className="game-hud game-hud--bottom">
+        {allowPossess ? (
+          <div
+            className={`possess-roster${possessCue ? " possess-roster--engaged" : ""}`}
+            role="group"
+            aria-label="Light possession"
+          >
+            <span className="possess-roster__label">
+              {possessCue ? "MANUAL OVERRIDE · WASD STEP · ESC RELEASE" : "POSSESS"}
+            </span>
+            <div className="possess-roster__keys">
+              {state.lights.map((light, index) => {
+                const selected = light.id === state.possessedLightId;
+                return (
+                  <button
+                    key={light.id}
+                    type="button"
+                    className={`possess-key${selected ? " possess-key--active" : ""}`}
+                    style={{ "--light-color": colorCss(light.color) } as CSSProperties}
+                    aria-label={`${selected ? "Release" : "Possess"} light ${index + 1}, ${light.role}`}
+                    aria-pressed={selected}
+                    disabled={state.ended}
+                    onClick={() => {
+                      dismissControlsHint();
+                      setState((current) =>
+                        setPossession(current, selected ? null : light.id),
+                      );
+                    }}
+                  >
+                    <strong>{index + 1}</strong>
+                    <span className="possess-key__swatch" aria-hidden="true" />
+                    <small>{light.role.toUpperCase()}</small>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
         <p className={`current-intention${possessCue ? " current-intention--possess" : ""}`}>
-          <span>{possessCue ? "MANUAL · WASD · ESC" : "CURRENT INTENTION"}</span>
+          <span>{possessCue ? "ENGAGED" : "CURRENT INTENTION"}</span>
           <strong>{possessCue ?? intention}</strong>
         </p>
         <button

@@ -14,12 +14,12 @@ Solo players can possess one light at a time:
 - While possessed, that light ignores Instinct assignment. WASD / arrows queue one
   orthogonal step per move tick (same budget as autopilot: even ticks, one cell,
   no stacking). With no input it holds.
-- Possessed lights still clear corruption under the same proximity rules as
-  interceptors (so driving into a breach does work).
+- Possessed lights clear any corruption within 3 cells (so driving into an edge
+  breach works). Autopilot interceptors still respect the Instinct engagement
+  bubble around the core.
 - Other lights stay on Instinct.
-- Replay hash records possession changes and applied manual steps.
-- Quiet UI: stronger glow on the possessed light + one line
-  `MANUAL · WASD · ESC`. No new dashboard.
+- Quiet UI: bottom roster maps `1`/`2`/`3` to colour + role; engaged state shows
+  `MANUAL OVERRIDE · WASD STEP · ESC RELEASE`. No dial dump.
 - Multiplayer: disabled in this slice (no host-ordered move channel yet).
 
 ## Proof
