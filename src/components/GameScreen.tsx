@@ -110,6 +110,8 @@ export function GameScreen({
   const [phaseToast, setPhaseToast] = useState<GameEvent | null>(null);
   const resolvedRef = useRef(false);
   const keysRef = useRef(new Set<string>());
+  /** Discrete WASD/arrow taps — set synchronously so the RAF tick cannot race React setState. */
+  const tapIntentRef = useRef<ManualIntent | null>(null);
   const lastDamageRef = useRef(initialState.damageTaken);
   const lastPulseUsedRef = useRef(initialState.pulse.usedAtTick);
   const lastSoundEventRef = useRef<string | null>(null);
@@ -202,11 +204,29 @@ export function GameScreen({
       while (accumulated >= stepMs) {
         setState((current) => {
           let next = current;
-          if (allowPossess && next.possessedLightId) {
-            const intent = intentFromKeys(keysRef.current);
-            if (intent) next = queueManualIntent(next, intent);
+          const possessedId = next.possessedLightId;
+          const beforeLight = possessedId
+            ? next.lights.find((light) => light.id === possessedId)
+            : null;
+          if (allowPossess && possessedId) {
+            const held = intentFromKeys(keysRef.current);
+            if (held) {
+              tapIntentRef.current = null;
+              next = queueManualIntent(next, held);
+            } else if (tapIntentRef.current) {
+              next = queueManualIntent(next, tapIntentRef.current);
+            }
           }
           const advanced = advanceTick(next);
+          if (tapIntentRef.current && beforeLight && possessedId) {
+            const afterLight = advanced.lights.find((light) => light.id === possessedId);
+            if (
+              afterLight
+              && (afterLight.x !== beforeLight.x || afterLight.y !== beforeLight.y)
+            ) {
+              tapIntentRef.current = null;
+            }
+          }
           if (scheduledPulseTick !== null && current.tick < scheduledPulseTick && advanced.tick >= scheduledPulseTick) {
             return activatePulse(advanced);
           }
@@ -286,6 +306,7 @@ export function GameScreen({
       if (event.code === "Escape") {
         event.preventDefault();
         dismissControlsHint();
+        tapIntentRef.current = null;
         setState((current) => setPossession(current, null));
         return;
       }
@@ -293,6 +314,7 @@ export function GameScreen({
         event.preventDefault();
         dismissControlsHint();
         const index = Number(event.code.slice(-1)) - 1;
+        tapIntentRef.current = null;
         setState((current) => {
           const light = current.lights[index];
           if (!light) return current;
@@ -304,6 +326,9 @@ export function GameScreen({
         event.preventDefault();
         dismissControlsHint();
         keysRef.current.add(event.code);
+        // Synchronous tap latch — discrete presses release before the next 10 Hz tick.
+        const intent = intentFromKeys(keysRef.current);
+        if (intent) tapIntentRef.current = intent;
       }
     }
     function onKeyUp(event: KeyboardEvent) {
