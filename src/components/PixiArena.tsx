@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { Application, Container, Graphics } from "pixi.js";
-import { manhattan, parseCellKey } from "../game/math";
+import { hashText, manhattan, parseCellKey } from "../game/math";
 import { CORE_X, CORE_Y, GRID_COLUMNS, GRID_ROWS, type EngineState, type LightState, type Point } from "../game/types";
 
 type PixiArenaProps = Readonly<{ state: EngineState }>;
@@ -340,6 +340,24 @@ function drawCore(graphics: Graphics, layout: Layout, health: number, tick: numb
     color: tension > 0.55 ? 0xffb0bc : 0xffffff,
     alpha: 1,
   });
+
+  if (health <= 40) {
+    const fractureCount = health <= 20 ? 6 : 4;
+    for (let index = 0; index < fractureCount; index += 1) {
+      const hash = hashText(`core-fracture|${index}`);
+      const angle = ((hash % 3_600) / 3_600) * Math.PI * 2;
+      const inner = mark * 1.15;
+      const outer = mark * (1.8 + ((hash >>> 10) & 63) / 100);
+      graphics
+        .moveTo(x + Math.cos(angle) * inner, y + Math.sin(angle) * inner)
+        .lineTo(x + Math.cos(angle) * outer, y + Math.sin(angle) * outer)
+        .stroke({
+          color: 0xff4d6d,
+          width: health <= 20 ? 1.4 : 1,
+          alpha: health <= 20 ? 0.7 : 0.42,
+        });
+    }
+  }
 }
 
 function drawRepairs(graphics: Graphics, layout: Layout, state: EngineState) {
@@ -366,12 +384,13 @@ function drawPulse(graphics: Graphics, layout: Layout, state: EngineState) {
   const age = state.tick - state.pulse.usedAtTick;
   if (age < 0 || age > 12) return;
   const progress = age / 12;
-  const radius = layout.cell * (0.8 + progress * 8.2);
-  const alpha = 1 - progress;
+  const earlyBoost = age <= 2 ? 1.18 : 1;
+  const radius = layout.cell * (0.8 + progress * 8.2) * earlyBoost;
+  const alpha = (1 - progress) * earlyBoost;
   const x = pxX(layout, state.pulse.x);
   const y = pxY(layout, state.pulse.y);
   graphics.circle(x, y, radius).fill({ color: 0x40e8ff, alpha: alpha * 0.06 });
-  graphics.circle(x, y, radius).stroke({ color: 0x40e8ff, width: 2.6, alpha });
+  graphics.circle(x, y, radius).stroke({ color: 0x40e8ff, width: 2.6, alpha: Math.min(1, alpha) });
   graphics.circle(x, y, radius * 0.82).stroke({ color: 0xf4f7ff, width: 1.1, alpha: alpha * 0.55 });
   graphics.circle(x, y, radius * 0.35).fill({ color: 0xf4f7ff, alpha: alpha * 0.08 });
 }
@@ -413,6 +432,73 @@ function drawImpacts(graphics: Graphics, layout: Layout, state: EngineState) {
   }
 }
 
+function drawImpactSparks(
+  graphics: Graphics,
+  layout: Layout,
+  state: EngineState,
+  reducedMotion: boolean,
+) {
+  for (const impact of state.impacts) {
+    const age = state.tick - impact.bornAtTick;
+    if (age < 0 || age > 10) continue;
+
+    const progress = age / 10;
+    const alpha = Math.max(0, 1 - progress);
+    const x = pxX(layout, impact.x);
+    const y = pxY(layout, impact.y);
+    const color = impact.kind === "damage"
+      ? 0xff4d6d
+      : impact.kind === "pulse"
+        ? 0xf4f7ff
+        : 0x40e8ff;
+    const fullCount = impact.kind === "damage" ? 10 : 7;
+    const count = reducedMotion ? Math.min(4, fullCount) : fullCount;
+
+    for (let index = 0; index < count; index += 1) {
+      const hash = hashText([
+        state.seed,
+        "spark",
+        impact.kind,
+        impact.bornAtTick,
+        impact.x,
+        impact.y,
+        index,
+      ].join("|"));
+      const angle = ((hash % 3_600) / 3_600) * Math.PI * 2;
+      const lengthNoise = ((hash >>> 12) & 255) / 255;
+      const inner = layout.cell * (0.18 + (reducedMotion ? 0.12 : progress * 0.22));
+      const outer = inner + layout.cell * (
+        reducedMotion
+          ? 0.38 + lengthNoise * 0.2
+          : 0.32 + progress * (0.8 + lengthNoise * 0.55)
+      );
+      const cos = Math.cos(angle);
+      const sin = Math.sin(angle);
+
+      graphics
+        .moveTo(x + cos * inner, y + sin * inner)
+        .lineTo(x + cos * outer, y + sin * outer)
+        .stroke({
+          color,
+          width: impact.kind === "damage" ? 1.5 : 1,
+          alpha: alpha * (0.42 + lengthNoise * 0.4),
+        });
+    }
+  }
+}
+
+function drawWarningShimmer(graphics: Graphics, layout: Layout, state: EngineState) {
+  if (state.lastEvent?.kind !== "warning") return;
+  const age = state.tick - state.lastEvent.tick;
+  if (age < 0 || age > 8) return;
+  const alpha = Math.max(0, 1 - age / 8) * 0.35;
+  graphics.rect(layout.originX, layout.originY, layout.width, layout.height).stroke({
+    color: 0xff4d6d,
+    width: 1.4,
+    alpha,
+  });
+}
+
 function renderAtmosphere(graphics: Graphics, width: number, height: number) {
   graphics.clear();
   drawAtmosphere(graphics, layoutFor(width, height));
@@ -442,6 +528,7 @@ function renderActors(
   height: number,
   interpolation: number,
   claimProgress: number,
+  reducedMotion: boolean,
 ) {
   graphics.clear();
   const layout = layoutFor(width, height);
@@ -450,7 +537,9 @@ function renderActors(
     drawLight(graphics, layout, light, interpolation, state.possessedLightId, claimProgress),
   );
   drawImpacts(graphics, layout, state);
+  drawImpactSparks(graphics, layout, state, reducedMotion);
   drawPulse(graphics, layout, state);
+  drawWarningShimmer(graphics, layout, state);
 }
 
 export function PixiArena({ state }: PixiArenaProps) {
@@ -535,7 +624,15 @@ export function PixiArena({ state }: PixiArenaProps) {
           reducedMotion.matches || claimAtRef.current === 0 || claimElapsed >= POSSESS_CLAIM_MS
             ? 0
             : claimElapsed / POSSESS_CLAIM_MS;
-        renderActors(actorLayer, current, width, height, interpolation, claimProgress);
+        renderActors(
+          actorLayer,
+          current,
+          width,
+          height,
+          interpolation,
+          claimProgress,
+          reducedMotion.matches,
+        );
       });
     }
 

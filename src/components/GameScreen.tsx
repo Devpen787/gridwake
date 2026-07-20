@@ -283,6 +283,7 @@ export function GameScreen({
     >
       <div className="pixi-arena-shell">
         <PixiArena state={state} />
+        <div className="phosphor-overlay" aria-hidden="true" />
       </div>
       <EventToast event={state.lastEvent} />
       <ControlsHint
