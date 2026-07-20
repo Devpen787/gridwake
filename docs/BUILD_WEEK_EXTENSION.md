@@ -86,4 +86,4 @@ Disclosure: this polish pass was implemented in Cursor rather than a separate Co
 - Vercel production deploy: `dpl_3QSRiouEqBWTcMUVnpJK26TKXcaf`
 - Aliased URL: https://gridwake.vercel.app
 - Inspect: https://vercel.com/devinsons-projects-b5ab981e/gridwake/3QSRiouEqBWTcMUVnpJK26TKXcaf
-- Final polish SHA after Prompt 08: *(updated in same commit)*
+- Final polish SHA after Prompt 08: *fce5c76*
