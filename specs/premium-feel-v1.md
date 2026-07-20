@@ -30,7 +30,8 @@ no dial/dashboard chrome, no audio pack.
 
 ### Result card
 
-- Grade-first: large grade + score bar, three hero stats, compact CORE/PEAK,
+- Grade-first: large grade + score bar, four hero stats (INSTINCT / OVERRIDE /
+  REPAIRS / PULSE), compact CORE/PEAK,
   secondary NEXT tip, quiet SEED/REPLAY/STATUS footer.
 - Short enter animation; reduced-motion collapses to static.
 

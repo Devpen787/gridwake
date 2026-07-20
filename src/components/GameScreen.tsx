@@ -3,13 +3,22 @@ import { gameAudio } from "../audio/audioDirector";
 import {
   activatePulse,
   advanceTick,
+  phaseForTick,
   pulseGuidance,
   queueManualIntent,
   setPossession,
   threatLevel,
   worstSector,
 } from "../game/engine";
-import { PULSE_CLEAR_CAP, TICK_RATE, type EngineState, type ManualIntent } from "../game/types";
+import {
+  OVERRIDE_MAX_TICKS,
+  PULSE_CLEAR_CAP,
+  TICK_RATE,
+  type EngineState,
+  type GameEvent,
+  type ManualIntent,
+  type RoundPhase,
+} from "../game/types";
 import { AudioToggle } from "./AudioToggle";
 import {
   ControlsHint,
@@ -35,6 +44,12 @@ type GameScreenProps = Readonly<{
 type KickKind = "damage" | "pulse" | null;
 
 const HEALTH_SEGMENTS = 10;
+const PHASE_TOAST_MS = 1_050;
+
+const PHASE_MESSAGES: Readonly<Record<Exclude<RoundPhase, "probe">, string>> = {
+  surge: "SURGE · BOUNDARY PRESSURE RISING",
+  collapse: "COLLAPSE · CORE UNDER SIEGE",
+};
 
 function formatTimer(ticksRemaining: number): string {
   const seconds = Math.max(0, Math.ceil(ticksRemaining / TICK_RATE));
@@ -92,12 +107,14 @@ export function GameScreen({
   const [kick, setKick] = useState<KickKind>(null);
   const [pulseKick, setPulseKick] = useState(false);
   const [showControlsHint, setShowControlsHint] = useState(() => shouldShowControlsHint());
+  const [phaseToast, setPhaseToast] = useState<GameEvent | null>(null);
   const resolvedRef = useRef(false);
   const keysRef = useRef(new Set<string>());
   const lastDamageRef = useRef(initialState.damageTaken);
   const lastPulseUsedRef = useRef(initialState.pulse.usedAtTick);
   const lastSoundEventRef = useRef<string | null>(null);
   const lastPossessedSoundRef = useRef(initialState.possessedLightId);
+  const phaseRef = useRef(phaseForTick(initialState.tick));
 
   const dismissControlsHint = useCallback(() => {
     markControlsHintSeen();
@@ -138,6 +155,19 @@ export function GameScreen({
     }
     lastPossessedSoundRef.current = state.possessedLightId;
   }, [state.possessedLightId]);
+
+  useEffect(() => {
+    const phase = phaseForTick(state.tick);
+    if (phase === phaseRef.current) return;
+    phaseRef.current = phase;
+    if (phase === "probe") return;
+    setPhaseToast({
+      tick: state.tick,
+      kind: "phase",
+      message: PHASE_MESSAGES[phase],
+    });
+    gameAudio.play(phase === "surge" ? "phase-surge" : "phase-collapse");
+  }, [state.tick]);
 
   useEffect(() => {
     let frame = 0;
@@ -272,12 +302,16 @@ export function GameScreen({
   const possessCue = possessLabel(state);
   const band = healthBand(state.health);
   const filledSegments = Math.max(0, Math.ceil((state.health / 100) * HEALTH_SEGMENTS));
+  const phase = phaseForTick(state.tick);
+  const overrideSpent = state.overrideTicksRemaining <= 0;
+  const overrideRatio = state.overrideTicksRemaining / OVERRIDE_MAX_TICKS;
 
   return (
     <section
       className={[
         "game",
         "screen",
+        `game--phase-${phase}`,
         `game--${guidance.toLowerCase()}`,
         `game--event-${state.lastEvent?.kind ?? "idle"}`,
         `game--health-${band}`,
@@ -292,6 +326,7 @@ export function GameScreen({
         <div className="phosphor-overlay" aria-hidden="true" />
       </div>
       <EventToast event={state.lastEvent} />
+      <EventToast event={phaseToast} durationMs={PHASE_TOAST_MS} />
       <ControlsHint
         visible={showControlsHint}
         allowPossess={allowPossess}
@@ -302,7 +337,7 @@ export function GameScreen({
         <MobileControls
           lights={state.lights}
           possessedLightId={state.possessedLightId}
-          disabled={state.ended}
+          disabled={state.ended || (overrideSpent && state.possessedLightId === null)}
           onPossess={(lightId) => {
             dismissControlsHint();
             setState((current) => setPossession(current, lightId));
@@ -335,13 +370,29 @@ export function GameScreen({
       <footer className="game-hud game-hud--bottom">
         {allowPossess ? (
           <div
-            className={`possess-roster${possessCue ? " possess-roster--engaged" : ""}`}
+            className={`possess-roster${possessCue ? " possess-roster--engaged" : ""}${overrideSpent ? " possess-roster--spent" : ""}`}
             role="group"
             aria-label="Light possession"
           >
-            <span className="possess-roster__label">
-              {possessCue ? "MANUAL OVERRIDE · WASD STEP · ESC RELEASE" : "POSSESS"}
-            </span>
+            <div className="possess-roster__header">
+              <span className="possess-roster__label">
+                {possessCue ? "MANUAL OVERRIDE · WASD STEP · ESC RELEASE" : "POSSESS"}
+              </span>
+              <div
+                className="override-meter"
+                role="meter"
+                aria-label="Override energy"
+                aria-valuemin={0}
+                aria-valuemax={OVERRIDE_MAX_TICKS}
+                aria-valuenow={state.overrideTicksRemaining}
+              >
+                <span>OVERRIDE</span>
+                <div className="override-meter__track" aria-hidden="true">
+                  <span style={{ width: `${overrideRatio * 100}%` }} />
+                </div>
+                <strong>{Math.ceil(state.overrideTicksRemaining / TICK_RATE)}s</strong>
+              </div>
+            </div>
             <div className="possess-roster__keys">
               {state.lights.map((light, index) => {
                 const selected = light.id === state.possessedLightId;
@@ -353,7 +404,7 @@ export function GameScreen({
                     style={{ "--light-color": colorCss(light.color) } as CSSProperties}
                     aria-label={`${selected ? "Release" : "Possess"} light ${index + 1}, ${light.role}`}
                     aria-pressed={selected}
-                    disabled={state.ended}
+                    disabled={state.ended || (overrideSpent && !selected)}
                     onClick={() => {
                       dismissControlsHint();
                       setState((current) =>
@@ -406,7 +457,8 @@ export function GameScreen({
       <div className="screen-reader-state" aria-live="polite">
         Core health {state.health}. {Math.ceil((state.maxTicks - state.tick) / TICK_RATE)} seconds remain.
         Threat {threat}. Sector {sector + 1}. Pulse {state.pulse.available ? guidance.toLowerCase() : "spent"}.
-        Intention {intention}.
+        Intention {intention}. Phase {phase}.
+        Override {state.overrideTicksRemaining} ticks remain.
         {possessCue ? ` ${possessCue}. Use WASD to move. Escape to release.` : allowPossess ? " Press 1 2 or 3 to possess a light." : ""}
       </div>
     </section>

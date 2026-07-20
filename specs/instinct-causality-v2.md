@@ -118,7 +118,11 @@ stores a target, mode, urgency, sector, and plain-language reason.
 
 `autonomousClears = interceptClears + trailRepairs`
 
-`instinctImpact = round(100 * autonomousClears / max(1, autonomousClears + pulseClears))`
+`instinctImpact = round(100 * autonomousClears / max(1, autonomousClears + pulseClears + manualClears))`
+
+Manual clears (`manualClears`) never enter the autonomous numerator. They may
+appear in the denominator so Instinct impact reflects relative autonomous
+contribution when OVERRIDE is used.
 
 `threatControl = 100 - peakThreat`
 

@@ -162,9 +162,14 @@ def exposure_damage(corruption_size: int, defenders: int, tick: int) -> int:
     return 2 if defenders == 0 else 1
 
 
-def instinct_impact(intercept_clears: int, trail_repairs: int, pulse_clears: int) -> int:
+def instinct_impact(
+    intercept_clears: int,
+    trail_repairs: int,
+    pulse_clears: int,
+    manual_clears: int = 0,
+) -> int:
     autonomous = max(0, intercept_clears) + max(0, trail_repairs)
-    total = autonomous + max(0, pulse_clears)
+    total = autonomous + max(0, pulse_clears) + max(0, manual_clears)
     return 0 if total == 0 else min(100, max(0, round(autonomous / total * 100)))
 
 

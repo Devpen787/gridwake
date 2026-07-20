@@ -7,6 +7,7 @@ import { ProgramScreen } from "./components/ProgramScreen";
 import { ResultScreen } from "./components/ResultScreen";
 import { RoomEntryScreen } from "./components/RoomEntryScreen";
 import { createInitialState, createReceipt } from "./game/engine";
+import { allowPossessionForMode } from "./game/possession";
 import type { CompiledStrategy, EngineState, RoundReceipt } from "./game/types";
 import { createRoom, normalizeRoomCode, roomCodeFromEntropy } from "./multiplayer/room";
 import type { PeerRoomCommand, PeerRoomSession } from "./multiplayer/peerTransport";
@@ -239,7 +240,7 @@ export function App() {
           initialState={roundState}
           modeLabel={roomState ? `ROOM ${roomState.code} · ${roomState.members.length} LIGHTS` : undefined}
           authorityLabel={roomState ? verifiedCheckpointTick === null ? "P2P HOST LOG · ORDERED INPUT" : `P2P VERIFIED · T${verifiedCheckpointTick}` : undefined}
-          allowPossess={roomState === null}
+          allowPossess={allowPossessionForMode(roomState ? "multiplayer" : "solo")}
           scheduledPulseTick={roomState ? scheduledPulseTick : null}
           onPulseRequest={roomState ? (tick) => roomSession.current?.requestPulse(tick) : undefined}
           onTick={roomState ? (tick) => roomSession.current?.updateTick(tick) : undefined}

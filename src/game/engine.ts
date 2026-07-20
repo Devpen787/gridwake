@@ -5,9 +5,11 @@ import {
   GRID_COLUMNS,
   GRID_ROWS,
   LOOKAHEAD_CELLS,
+  OVERRIDE_MAX_TICKS,
   PULSE_CLEAR_CAP,
   PULSE_SHIELD_TICKS,
   ROUND_TICKS,
+  type ClearResolution,
   type CompiledStrategy,
   type EngineState,
   type GameEvent,
@@ -16,6 +18,7 @@ import {
   type LightState,
   type ManualIntent,
   type Point,
+  type RoundPhase,
   type RoundReceipt,
   type StrategyPolicy,
 } from "./types";
@@ -107,6 +110,7 @@ export function createInitialState(
     pulse: { available: true, usedAtTick: null, x: CORE_X, y: CORE_Y, sector: null, cleared: 0, shieldUntilTick: null },
     trailRepairs: 0,
     interceptClears: 0,
+    manualClears: 0,
     pulseClears: 0,
     peakThreat: threatLevel(corruption),
     damageTaken: 0,
@@ -116,7 +120,15 @@ export function createInitialState(
     replayHash,
     possessedLightId: null,
     manualIntent: null,
+    overrideTicksRemaining: OVERRIDE_MAX_TICKS,
   };
+}
+
+/** Derived round pacing from existing growth thresholds (150 / 330). */
+export function phaseForTick(tick: number): RoundPhase {
+  if (tick < 150) return "probe";
+  if (tick < 330) return "surge";
+  return "collapse";
 }
 
 export function pressureBySector(corruption: ReadonlySet<string>): number[] {
@@ -154,9 +166,14 @@ export function pulseGuidance(
   return "HOLD";
 }
 
-export function instinctImpact(interceptClears: number, trailRepairs: number, pulseClears: number): number {
+export function instinctImpact(
+  interceptClears: number,
+  trailRepairs: number,
+  pulseClears: number,
+  manualClears = 0,
+): number {
   const autonomousClears = Math.max(0, interceptClears) + Math.max(0, trailRepairs);
-  const totalClears = autonomousClears + Math.max(0, pulseClears);
+  const totalClears = autonomousClears + Math.max(0, pulseClears) + Math.max(0, manualClears);
   return totalClears === 0 ? 0 : clamp(Math.round((autonomousClears / totalClears) * 100), 0, 100);
 }
 
@@ -525,29 +542,19 @@ function resolveIntercepts(
   lights: readonly LightState[],
   tick: number,
   policy: StrategyPolicy,
-): { corruption: Set<string>; clearPoints: Point[] } {
+): ClearResolution {
   const remaining = new Set(corruption);
-  const clearPoints: Point[] = [];
+  const autonomousPoints: Point[] = [];
+  const manualPoints: Point[] = [];
   const maximumClearRange = policy.engagementRadius + policy.pursuitLimit;
 
   for (const light of lights) {
     if (light.mode === "manual") {
-      // Possessed lights clear every other tick: everything underfoot / adjacent,
-      // so driving through a breach visibly removes reds.
-      if (tick % 2 !== 0) continue;
-      const local = [...remaining]
-        .map(parseCellKey)
-        .filter((point) => manhattan(light, point) <= 1)
-        .toSorted((a, b) => (
-          manhattan(light, a) - manhattan(light, b) ||
-          a.y - b.y ||
-          a.x - b.x
-        ));
-      for (const point of local) {
-        const key = cellKey(point.x, point.y);
-        if (!remaining.has(key)) continue;
+      // Scarce override: clear only the occupied cell on every logical tick.
+      const key = cellKey(light.x, light.y);
+      if (remaining.has(key)) {
         remaining.delete(key);
-        clearPoints.push(point);
+        manualPoints.push({ x: light.x, y: light.y });
       }
       continue;
     }
@@ -570,9 +577,9 @@ function resolveIntercepts(
     if (!target) continue;
     const key = cellKey(target.x, target.y);
     remaining.delete(key);
-    clearPoints.push(target);
+    autonomousPoints.push(target);
   }
-  return { corruption: remaining, clearPoints };
+  return { corruption: remaining, autonomousPoints, manualPoints };
 }
 
 export function exposureDamage(corruptionSize: number, defenders: number, tick: number): number {
@@ -600,22 +607,67 @@ function stateEvent(
   lights: readonly LightState[],
   repairCount: number,
   interceptCount: number,
+  manualCount: number,
   pulseClears: number,
+  overrideRemaining: number,
+  possessedLightId: string | null,
 ): string {
   const positions = lights.map((light) => `${light.id}:${light.x},${light.y}`).join(";");
-  return `${tick}|${health}|${corruption.size}|${positions}|${repairCount}|${interceptCount}|${pulseClears}`;
+  return [
+    tick,
+    health,
+    corruption.size,
+    positions,
+    repairCount,
+    interceptCount,
+    manualCount,
+    pulseClears,
+    overrideRemaining,
+    possessedLightId ?? "none",
+  ].join("|");
+}
+
+function releasePossession(
+  state: EngineState,
+  reason: "manual" | "auto",
+  atTick = state.tick,
+): EngineState {
+  if (state.possessedLightId === null) return state;
+  const releasedId = state.possessedLightId;
+  return {
+    ...state,
+    possessedLightId: null,
+    manualIntent: null,
+    lights: state.lights.map((light) => (
+      light.id === releasedId
+        ? {
+            ...light,
+            mode: "formation" as const,
+            reason: reason === "auto" ? "OVERRIDE EXHAUSTED" : "RELEASED · RETURNING",
+          }
+        : light
+    )),
+    replayHash: hashEvent(
+      state.replayHash,
+      reason === "auto"
+        ? `override-release|${atTick}|auto`
+        : `possess|${atTick}|none`,
+    ),
+  };
 }
 
 export function setPossession(state: EngineState, lightId: string | null): EngineState {
   if (state.ended) return state;
-  if (lightId !== null && !state.lights.some((light) => light.id === lightId)) return state;
+  if (lightId === null) return releasePossession(state, "manual");
+  if (!state.lights.some((light) => light.id === lightId)) return state;
   if (state.possessedLightId === lightId) return state;
+  if (state.overrideTicksRemaining <= 0) return state;
   return {
     ...state,
     possessedLightId: lightId,
     manualIntent: null,
     lights: state.lights.map((light) => {
-      if (lightId !== null && light.id === lightId) {
+      if (light.id === lightId) {
         return {
           ...light,
           mode: "manual" as const,
@@ -632,7 +684,7 @@ export function setPossession(state: EngineState, lightId: string | null): Engin
       }
       return light;
     }),
-    replayHash: hashEvent(state.replayHash, `possess|${state.tick}|${lightId ?? "none"}`),
+    replayHash: hashEvent(state.replayHash, `possess|${state.tick}|${lightId}`),
   };
 }
 
@@ -647,11 +699,29 @@ export function queueManualIntent(state: EngineState, intent: ManualIntent): Eng
 export function advanceTick(state: EngineState): EngineState {
   if (state.ended) return state;
   const tick = state.tick + 1;
+  const wasPossessed = state.possessedLightId !== null;
+  let overrideTicksRemaining = state.overrideTicksRemaining;
+  let replayBase = state.replayHash;
+
+  if (wasPossessed) {
+    overrideTicksRemaining = Math.max(0, overrideTicksRemaining - 1);
+    replayBase = hashEvent(
+      replayBase,
+      `override-tick|${tick}|${overrideTicksRemaining}`,
+    );
+  }
+
   const grown = growCorruption(new Set(state.corruption), state.rngState, tick);
-  const provisional = { ...state, tick, corruption: grown.corruption };
+  const provisional: EngineState = {
+    ...state,
+    tick,
+    corruption: grown.corruption,
+    overrideTicksRemaining,
+    replayHash: replayBase,
+  };
   const moved = moveLights(provisional, grown.rngState);
-  const intercepted = resolveIntercepts(grown.corruption, moved.lights, tick, state.policy);
-  const repaired = resolveRepairs(intercepted.corruption, moved.lights, tick, state.policy);
+  const cleared = resolveIntercepts(grown.corruption, moved.lights, tick, state.policy);
+  const repaired = resolveRepairs(cleared.corruption, moved.lights, tick, state.policy);
   const pulseShielded = state.pulse.shieldUntilTick !== null && tick <= state.pulse.shieldUntilTick;
   const damage = pulseShielded ? 0 : coreDamage(repaired.corruption, moved.lights, tick);
   const health = clamp(state.health - damage, 0, 100);
@@ -662,7 +732,8 @@ export function advanceTick(state: EngineState): EngineState {
   ];
   const impacts = [
     ...state.impacts.filter((impact) => tick - impact.bornAtTick <= 10),
-    ...intercepted.clearPoints.map((point) => ({ ...point, bornAtTick: tick, kind: "intercept" as const })),
+    ...cleared.autonomousPoints.map((point) => ({ ...point, bornAtTick: tick, kind: "intercept" as const })),
+    ...cleared.manualPoints.map((point) => ({ ...point, bornAtTick: tick, kind: "manual" as const })),
     ...(damage > 0 ? [{ ...CORE_POINT, bornAtTick: tick, kind: "damage" as const }] : []),
   ];
   const currentThreat = threatLevel(repaired.corruption);
@@ -670,27 +741,25 @@ export function advanceTick(state: EngineState): EngineState {
   let lastEvent: GameEvent | null = state.lastEvent;
   if (damage > 0) {
     lastEvent = { tick, kind: "damage", message: `CORE HIT · -${damage} HEALTH` };
-  } else if (intercepted.clearPoints.length > 0) {
-    lastEvent = { tick, kind: "intercept", message: `INTERCEPT · ${intercepted.clearPoints.length} CORRUPTION CLEARED` };
+  } else if (cleared.manualPoints.length > 0) {
+    lastEvent = {
+      tick,
+      kind: "intercept",
+      message: `OVERRIDE · ${cleared.manualPoints.length} CORRUPTION CLEARED`,
+    };
+  } else if (cleared.autonomousPoints.length > 0) {
+    lastEvent = {
+      tick,
+      kind: "intercept",
+      message: `INTERCEPT · ${cleared.autonomousPoints.length} CORRUPTION CLEARED`,
+    };
   } else if (repaired.repairPoints.length > 0) {
     lastEvent = { tick, kind: "repair", message: `TRAIL STITCH · +${repaired.repairPoints.length} REPAIR` };
   } else if (guidance === "FIRE" && state.pulse.available && state.lastEvent?.kind !== "warning") {
     lastEvent = { tick, kind: "warning", message: "PULSE WINDOW CRITICAL" };
   }
-  const replayHash = hashEvent(
-    moved.replayHash,
-    stateEvent(
-      tick,
-      health,
-      repaired.corruption,
-      moved.lights,
-      repaired.repairPoints.length,
-      intercepted.clearPoints.length,
-      state.pulseClears,
-    ),
-  );
 
-  return {
+  let next: EngineState = {
     ...state,
     tick,
     rngState: moved.rngState,
@@ -700,15 +769,40 @@ export function advanceTick(state: EngineState): EngineState {
     repairs,
     impacts,
     trailRepairs: state.trailRepairs + repaired.repairPoints.length,
-    interceptClears: state.interceptClears + intercepted.clearPoints.length,
+    interceptClears: state.interceptClears + cleared.autonomousPoints.length,
+    manualClears: state.manualClears + cleared.manualPoints.length,
     peakThreat: Math.max(state.peakThreat, currentThreat),
     damageTaken: state.damageTaken + damage,
     lastEvent,
     ended,
     sharedWin: ended ? health > 0 && tick >= state.maxTicks : null,
-    replayHash,
+    replayHash: moved.replayHash,
     manualIntent: moved.manualIntent,
+    overrideTicksRemaining,
+    possessedLightId: state.possessedLightId,
   };
+
+  if (wasPossessed && overrideTicksRemaining === 0) {
+    next = releasePossession(next, "auto", tick);
+  }
+
+  const replayHash = hashEvent(
+    next.replayHash,
+    stateEvent(
+      tick,
+      health,
+      repaired.corruption,
+      next.lights,
+      repaired.repairPoints.length,
+      cleared.autonomousPoints.length,
+      cleared.manualPoints.length,
+      state.pulseClears,
+      overrideTicksRemaining,
+      next.possessedLightId,
+    ),
+  );
+
+  return { ...next, replayHash };
 }
 
 export function activatePulse(state: EngineState): EngineState {
@@ -767,7 +861,12 @@ export function createReceipt(state: EngineState, strategy: CompiledStrategy): R
     throw new Error("A receipt requires a resolved round.");
   }
   const outcome = state.sharedWin ? "grid-held" : "core-lost";
-  const impact = instinctImpact(state.interceptClears, state.trailRepairs, state.pulseClears);
+  const impact = instinctImpact(
+    state.interceptClears,
+    state.trailRepairs,
+    state.pulseClears,
+    state.manualClears,
+  );
   const score = performanceScore(state.health, state.peakThreat, impact);
   return {
     engineVersion: ENGINE_VERSION,
@@ -778,6 +877,7 @@ export function createReceipt(state: EngineState, strategy: CompiledStrategy): R
     finalHealth: state.health,
     trailRepairs: state.trailRepairs,
     interceptClears: state.interceptClears,
+    manualClears: state.manualClears,
     pulseClears: state.pulseClears,
     peakThreat: state.peakThreat,
     damageTaken: state.damageTaken,

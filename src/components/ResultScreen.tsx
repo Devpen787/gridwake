@@ -66,7 +66,8 @@ export function ResultScreen({
     ? compareReceipts(receipt, previousReceipt)
     : [];
   const heroStats: readonly HeroStat[] = [
-    { label: "INTERCEPTS", value: receipt.interceptClears },
+    { label: "INSTINCT", value: receipt.interceptClears },
+    { label: "OVERRIDE", value: receipt.manualClears },
     { label: "REPAIRS", value: receipt.trailRepairs },
     { label: "PULSE", value: receipt.pulseClears },
   ];

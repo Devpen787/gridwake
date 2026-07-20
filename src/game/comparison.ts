@@ -1,8 +1,8 @@
 import type { RoundReceipt } from "./types";
 
 export type ReceiptDelta = Readonly<{
-  key: "score" | "core" | "instinct";
-  label: "SCORE" | "CORE" | "INSTINCT";
+  key: "score" | "core" | "instinct" | "override";
+  label: "SCORE" | "CORE" | "INSTINCT" | "OVERRIDE";
   value: number;
 }>;
 
@@ -29,6 +29,11 @@ export function compareReceipts(
       label: "INSTINCT",
       value: current.instinctImpact - previous.instinctImpact,
     },
+    {
+      key: "override",
+      label: "OVERRIDE",
+      value: current.manualClears - previous.manualClears,
+    },
   ];
 }
 
@@ -50,7 +55,7 @@ export function formatReceiptShareText(receipt: RoundReceipt): string {
     `${receipt.grade} ${receipt.gradeScore}/100`,
     `CORE ${receipt.finalHealth}`,
     `INSTINCT ${receipt.instinctImpact}`,
-    `I${receipt.interceptClears} R${receipt.trailRepairs} P${receipt.pulseClears}`,
+    `I${receipt.interceptClears} O${receipt.manualClears} R${receipt.trailRepairs} P${receipt.pulseClears}`,
     `SEED ${receipt.seed}`,
     `REPLAY ${receipt.replayHash}`,
   ].join(" · ");

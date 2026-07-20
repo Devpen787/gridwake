@@ -83,8 +83,13 @@ unverified. Never add a new mechanic, screen, or dependency that no current gate
   Production aliased to https://gridwake.vercel.app (`dpl_A6v9V47zfayVNMvZHt6MFQk6Bf3h`).
   Session ID for Build Week `/feedback` remains `PENDING` until a real Codex ID is pasted.
 - Solo Instinct Causality v2 is playable and deterministic.
-- 90 TypeScript tests pass (including round-duration source-of-truth), plus Python golden parity and
-  sensitivity rounds. Typecheck and production build pass.
+- 102 TypeScript tests pass (including possession attribution, OVERRIDE budget,
+  phase boundaries), plus Python golden parity and sensitivity rounds. Typecheck
+  and production build pass via `npm run verify` after the possession-truth slice.
+- Possession truth: `manualClears` separate from `interceptClears`;
+  `OVERRIDE_MAX_TICKS=60`; occupy-only manual clear; `phaseForTick` PROBE/SURGE/
+  COLLAPSE; result shows INSTINCT/OVERRIDE/REPAIRS/PULSE; comparison includes OVERRIDE.
+  Multiplayer still cannot possess (`allowPossessionForMode("multiplayer") === false`).
 - The program screen now shows understood-vs-ignored: every dial carries provenance
   (stated ← evidence, DEFAULT, or amber RAISED TO MINIMUM / CAPPED AT MAXIMUM ← evidence)
   and unmatched content words appear in an IGNORED row. Verified in the browser on the
@@ -109,11 +114,12 @@ unverified. Never add a new mechanic, screen, or dependency that no current gate
 
 ## Active slice
 
-Gate 5 — network truth. Production redeploy with premium feel is DONE
-(https://gridwake.vercel.app). Remaining: two real-network room proof + restrictive-NAT
+Possession / round-phase truth fix is verified on `demo-final-polish` (from tip
+`dbcc9a6`). Gate 5 remaining: two real-network room proof + restrictive-NAT
 failure exercise (needs two physical devices / networks; agent cannot complete alone).
 Gates 1, 2, and 4 are closed; Gate 3 waits on human playtests.
-Possess Light v1 (solo) and Premium Feel v1 are shipped.
+Possess Light v1 (solo) and Premium Feel v1 are shipped; possession budget + clear
+attribution + phase pacing supersede the earlier “clear like interceptors” note.
 
 ## Next executable actions
 
@@ -139,9 +145,10 @@ Possess Light v1 (solo) and Premium Feel v1 are shipped.
       trace). Spec: `specs/per-role-compilation-v1.md`. Gate 4 is CLOSED.
       Deferred: per-member words→round trace on the multiplayer result screen.
 - [x] Possess Light v1 (solo): `1`/`2`/`3` possess, WASD/arrows move, Esc release.
-      Same move budget as autopilot; possessed lights clear like interceptors;
-      replay hashes possession + steps. Multiplayer disabled (`allowPossess={false}`).
       Spec: `specs/possess-light-v1.md`. Engine version → `gridwake-local-v0.5`.
+- [x] Possession truth fix: `ClearResolution` / `manualClears` / `OVERRIDE_MAX_TICKS=60`
+      / occupy-only clear / `phaseForTick` / result INSTINCT vs OVERRIDE. Multiplayer
+      gated via `allowPossessionForMode`.
 - [x] Quiet-pass (user feedback): strip program dial grid / IGNORED / entropy,
       strip in-game threat+live-instinct+per-light intention strip to health / timer /
       pulse / one intention, strip result words→round panel. Provenance reading

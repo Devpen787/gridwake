@@ -9,6 +9,8 @@ export const ROUND_TICKS = ROUND_SECONDS * TICK_RATE;
 export const LOOKAHEAD_CELLS = 3;
 export const PULSE_CLEAR_CAP = 6;
 export const PULSE_SHIELD_TICKS = 12;
+/** Six seconds of scarce manual override at 10 Hz. */
+export const OVERRIDE_MAX_TICKS = 60;
 
 export type Point = Readonly<{ x: number; y: number }>;
 
@@ -46,7 +48,7 @@ export type ImpactFlash = Readonly<{
   x: number;
   y: number;
   bornAtTick: number;
-  kind: "intercept" | "pulse" | "damage";
+  kind: "intercept" | "pulse" | "damage" | "manual";
 }>;
 
 export type Formation = "spread" | "balanced" | "link" | "ring";
@@ -68,7 +70,7 @@ export type StrategyPolicy = Readonly<{
 
 export type GameEvent = Readonly<{
   tick: number;
-  kind: "repair" | "intercept" | "pulse" | "damage" | "warning";
+  kind: "repair" | "intercept" | "pulse" | "damage" | "warning" | "phase";
   message: string;
 }>;
 
@@ -81,6 +83,8 @@ export type PulseState = Readonly<{
   cleared: number;
   shieldUntilTick: number | null;
 }>;
+
+export type RoundPhase = "probe" | "surge" | "collapse";
 
 export type EngineState = Readonly<{
   seed: number;
@@ -96,6 +100,7 @@ export type EngineState = Readonly<{
   pulse: PulseState;
   trailRepairs: number;
   interceptClears: number;
+  manualClears: number;
   pulseClears: number;
   peakThreat: number;
   damageTaken: number;
@@ -105,6 +110,7 @@ export type EngineState = Readonly<{
   replayHash: number;
   possessedLightId: string | null;
   manualIntent: ManualIntent | null;
+  overrideTicksRemaining: number;
 }>;
 
 export type Instinct = Readonly<{
@@ -129,6 +135,7 @@ export type RoundReceipt = Readonly<{
   finalHealth: number;
   trailRepairs: number;
   interceptClears: number;
+  manualClears: number;
   pulseClears: number;
   peakThreat: number;
   damageTaken: number;
@@ -136,4 +143,10 @@ export type RoundReceipt = Readonly<{
   gradeScore: number;
   grade: "S" | "A" | "B" | "C" | "D";
   replayHash: string;
+}>;
+
+export type ClearResolution = Readonly<{
+  corruption: Set<string>;
+  autonomousPoints: readonly Point[];
+  manualPoints: readonly Point[];
 }>;

@@ -123,6 +123,8 @@ describe("GRIDWAKE local deterministic engine", () => {
     expect(instinctImpact(0, 0, 0)).toBe(0);
     expect(instinctImpact(8, 2, 5)).toBe(67);
     expect(instinctImpact(20, 0, 0)).toBe(100);
+    expect(instinctImpact(8, 2, 5, 5)).toBe(50);
+    expect(instinctImpact(10, 0, 0, 10)).toBe(50);
     expect(performanceScore(80, 40, 80)).toBe(76);
     expect(performanceGrade("grid-held", 76)).toBe("A");
     expect(performanceGrade("core-lost", 100)).toBe("D");

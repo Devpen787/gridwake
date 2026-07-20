@@ -1,7 +1,17 @@
 import { useEffect, useRef } from "react";
 import { Application, Container, Graphics } from "pixi.js";
+import { phaseForTick } from "../game/engine";
 import { hashText, manhattan, parseCellKey } from "../game/math";
-import { CORE_X, CORE_Y, GRID_COLUMNS, GRID_ROWS, type EngineState, type LightState, type Point } from "../game/types";
+import {
+  CORE_X,
+  CORE_Y,
+  GRID_COLUMNS,
+  GRID_ROWS,
+  type EngineState,
+  type LightState,
+  type Point,
+  type RoundPhase,
+} from "../game/types";
 
 type PixiArenaProps = Readonly<{ state: EngineState }>;
 
@@ -64,16 +74,21 @@ function displacePoint(x: number, y: number, warp: PulseWarp | null): Readonly<{
   };
 }
 
-function drawAtmosphere(graphics: Graphics, layout: Layout) {
+function drawAtmosphere(graphics: Graphics, layout: Layout, phase: RoundPhase) {
   const cx = pxX(layout, CORE_X);
   const cy = pxY(layout, CORE_Y);
-  graphics.circle(cx, cy, layout.cell * 12).fill({ color: 0x07141c, alpha: 0.7 });
-  graphics.circle(cx, cy, layout.cell * 11).fill({ color: 0x0a1a24, alpha: 0.55 });
-  graphics.circle(cx, cy, layout.cell * 6).fill({ color: 0x102838, alpha: 0.35 });
+  const vignetteBoost = phase === "collapse" ? 1.18 : phase === "surge" ? 1.06 : 1;
+  graphics.circle(cx, cy, layout.cell * 12 * vignetteBoost).fill({ color: 0x07141c, alpha: phase === "collapse" ? 0.82 : 0.7 });
+  graphics.circle(cx, cy, layout.cell * 11).fill({ color: 0x0a1a24, alpha: phase === "collapse" ? 0.68 : 0.55 });
+  graphics.circle(cx, cy, layout.cell * (phase === "collapse" ? 5.2 : 6)).fill({
+    color: 0x102838,
+    alpha: phase === "collapse" ? 0.48 : 0.35,
+  });
+  const borderAlpha = phase === "surge" ? 0.34 : phase === "collapse" ? 0.42 : 0.22;
   graphics.rect(layout.originX, layout.originY, layout.width, layout.height).stroke({
-    color: 0x40e8ff,
-    width: 1.2,
-    alpha: 0.22,
+    color: phase === "collapse" ? 0xff4d6d : 0x40e8ff,
+    width: phase === "probe" ? 1.2 : 1.45,
+    alpha: borderAlpha,
   });
 }
 
@@ -130,7 +145,8 @@ function drawTacticalField(graphics: Graphics, layout: Layout, state: EngineStat
   }
 }
 
-function drawCorruption(graphics: Graphics, layout: Layout, state: EngineState) {
+function drawCorruption(graphics: Graphics, layout: Layout, state: EngineState, phase: RoundPhase) {
+  const aggression = phase === "collapse" ? 1.22 : phase === "surge" ? 1.08 : 1;
   for (const key of state.corruption) {
     const point = parseCellKey(key);
     const x = layout.originX + point.x * layout.cell;
@@ -146,18 +162,19 @@ function drawCorruption(graphics: Graphics, layout: Layout, state: EngineState) 
     const nearCore = manhattan(point, CORE_POINT) <= 5;
     const hash = (point.x * 17 + point.y * 31 + state.seed) & 7;
     const inset = Math.max(0.8, layout.cell * (onRim ? 0.02 : nearRim ? 0.06 : 0.12));
-    const fillAlpha = onRim ? 0.96 : nearRim ? 0.84 : nearCore ? 0.7 : 0.55;
-    const strokeAlpha = onRim ? 0.95 : nearRim ? 0.78 : nearCore ? 0.7 : 0.42;
+    const fillAlpha = Math.min(1, (onRim ? 0.96 : nearRim ? 0.84 : nearCore ? 0.7 : 0.55) * aggression);
+    const strokeAlpha = Math.min(1, (onRim ? 0.95 : nearRim ? 0.78 : nearCore ? 0.7 : 0.42) * aggression);
+    const frontierHot = phase !== "probe" && (onRim || nearRim);
 
     if (nearCore) {
-      graphics.circle(pxX(layout, point.x), pxY(layout, point.y), layout.cell * 0.62).fill({
+      graphics.circle(pxX(layout, point.x), pxY(layout, point.y), layout.cell * (0.62 * aggression)).fill({
         color: 0xff4d6d,
-        alpha: 0.14,
+        alpha: phase === "collapse" ? 0.22 : 0.14,
       });
     }
 
     if (onRim) {
-      const jag = layout.cell * (0.08 + (hash % 4) * 0.04);
+      const jag = layout.cell * (0.08 + (hash % 4) * 0.04) * (phase === "collapse" ? 1.25 : 1);
       const poly = [
         x + inset,
         y + inset + (hash & 1 ? jag : 0),
@@ -169,15 +186,15 @@ function drawCorruption(graphics: Graphics, layout: Layout, state: EngineState) 
         y + layout.cell - inset,
       ];
       graphics.poly(poly).fill({ color: 0x2a0a14, alpha: fillAlpha }).stroke({
-        color: 0xff4d6d,
-        width: 1.35,
+        color: frontierHot ? 0xff6b86 : 0xff4d6d,
+        width: phase === "collapse" ? 1.7 : 1.35,
         alpha: strokeAlpha,
       });
       graphics
         .moveTo(x + layout.cell * 0.1, y + layout.cell * (0.2 + (hash % 3) * 0.08))
         .lineTo(x + layout.cell * 0.45, y + layout.cell * 0.55)
         .lineTo(x + layout.cell * 0.9, y + layout.cell * (0.25 + (hash % 2) * 0.15))
-        .stroke({ color: 0xff6b86, width: 1.1, alpha: 0.7 });
+        .stroke({ color: 0xff6b86, width: phase === "collapse" ? 1.4 : 1.1, alpha: frontierHot ? 0.88 : 0.7 });
       if (hash % 3 === 0) {
         graphics
           .poly([
@@ -188,7 +205,7 @@ function drawCorruption(graphics: Graphics, layout: Layout, state: EngineState) 
             x + layout.cell * 0.05,
             y + layout.cell * 0.18,
           ])
-          .fill({ color: 0xff4d6d, alpha: 0.55 });
+          .fill({ color: 0xff4d6d, alpha: phase === "collapse" ? 0.72 : 0.55 });
       }
       continue;
     }
@@ -196,13 +213,21 @@ function drawCorruption(graphics: Graphics, layout: Layout, state: EngineState) 
     graphics
       .rect(x + inset, y + inset, layout.cell - inset * 2, layout.cell - inset * 2)
       .fill({ color: 0x2a0a14, alpha: fillAlpha })
-      .stroke({ color: 0xff4d6d, width: nearRim ? 1.2 : 1, alpha: strokeAlpha });
+      .stroke({
+        color: frontierHot ? 0xff6b86 : 0xff4d6d,
+        width: nearRim ? (phase === "surge" ? 1.35 : 1.2) : 1,
+        alpha: strokeAlpha,
+      });
     const fracture = (hash & 3) / 4;
     graphics
       .moveTo(x + layout.cell * 0.18, y + layout.cell * (0.25 + fracture * 0.25))
       .lineTo(x + layout.cell * 0.52, y + layout.cell * 0.5)
       .lineTo(x + layout.cell * 0.82, y + layout.cell * (0.36 + fracture * 0.2))
-      .stroke({ color: 0xff6b86, width: 0.9, alpha: nearRim ? 0.55 : 0.35 });
+      .stroke({
+        color: 0xff6b86,
+        width: phase === "collapse" ? 1.15 : 0.9,
+        alpha: nearRim ? (phase === "probe" ? 0.55 : 0.75) : 0.35,
+      });
   }
 }
 
@@ -301,24 +326,26 @@ function drawLight(
   graphics.poly(diamond).fill({ color: light.color, alpha: 0.12 }).stroke({ color: light.color, width: 2.2, alpha: 1 });
 }
 
-function drawCore(graphics: Graphics, layout: Layout, health: number, tick: number) {
+function drawCore(graphics: Graphics, layout: Layout, health: number, tick: number, phase: RoundPhase) {
   const x = pxX(layout, CORE_X);
   const y = pxY(layout, CORE_Y);
   const tension = 1 - health / 100;
-  const pulse = 1 + Math.sin(tick * 0.14) * (0.06 - tension * 0.03);
-  const glow = layout.cell * (2.4 - tension * 0.9) * pulse;
+  const phaseTension = phase === "collapse" ? 0.18 : phase === "surge" ? 0.08 : 0;
+  const motionRate = phase === "surge" ? 0.2 : phase === "collapse" ? 0.26 : 0.14;
+  const pulse = 1 + Math.sin(tick * motionRate) * (0.06 - tension * 0.03 + phaseTension * 0.04);
+  const glow = layout.cell * (2.4 - tension * 0.9 - phaseTension * 0.35) * pulse;
   const mark = layout.cell * (0.42 - tension * 0.06) * pulse;
-  const coreTint = tension > 0.55 ? 0xff4d6d : tension > 0.3 ? 0xffd166 : 0xf4f7ff;
-  const signalTint = tension > 0.55 ? 0xff6b86 : 0x40e8ff;
+  const coreTint = tension > 0.55 || phase === "collapse" ? 0xff4d6d : tension > 0.3 ? 0xffd166 : 0xf4f7ff;
+  const signalTint = tension > 0.55 || phase === "collapse" ? 0xff6b86 : 0x40e8ff;
 
   graphics.circle(x, y, glow * 1.35).fill({ color: coreTint, alpha: 0.03 + health / 7_000 });
-  graphics.circle(x, y, glow).fill({ color: signalTint, alpha: 0.055 + tension * 0.04 });
-  graphics.circle(x, y, glow * 0.45).fill({ color: coreTint, alpha: 0.08 + tension * 0.04 });
-  if (tension > 0.4) {
+  graphics.circle(x, y, glow).fill({ color: signalTint, alpha: 0.055 + tension * 0.04 + phaseTension * 0.03 });
+  graphics.circle(x, y, glow * 0.45).fill({ color: coreTint, alpha: 0.08 + tension * 0.04 + phaseTension * 0.04 });
+  if (tension > 0.4 || phase === "collapse") {
     graphics.circle(x, y, glow * 1.6).stroke({
       color: 0xff4d6d,
       width: 1.2,
-      alpha: (tension - 0.4) * 0.55,
+      alpha: Math.max((tension - 0.4) * 0.55, phase === "collapse" ? 0.28 : 0),
     });
   }
   graphics
@@ -337,12 +364,12 @@ function drawCore(graphics: Graphics, layout: Layout, health: number, tick: numb
     ])
     .stroke({ color: signalTint, width: 1, alpha: 0.75 });
   graphics.circle(x, y, Math.max(1.8, layout.cell * 0.11)).fill({
-    color: tension > 0.55 ? 0xffb0bc : 0xffffff,
+    color: tension > 0.55 || phase === "collapse" ? 0xffb0bc : 0xffffff,
     alpha: 1,
   });
 
-  if (health <= 40) {
-    const fractureCount = health <= 20 ? 6 : 4;
+  if (health <= 40 || phase === "collapse") {
+    const fractureCount = health <= 20 || phase === "collapse" ? 6 : 4;
     for (let index = 0; index < fractureCount; index += 1) {
       const hash = hashText(`core-fracture|${index}`);
       const angle = ((hash % 3_600) / 3_600) * Math.PI * 2;
@@ -353,8 +380,8 @@ function drawCore(graphics: Graphics, layout: Layout, health: number, tick: numb
         .lineTo(x + Math.cos(angle) * outer, y + Math.sin(angle) * outer)
         .stroke({
           color: 0xff4d6d,
-          width: health <= 20 ? 1.4 : 1,
-          alpha: health <= 20 ? 0.7 : 0.42,
+          width: health <= 20 || phase === "collapse" ? 1.4 : 1,
+          alpha: health <= 20 || phase === "collapse" ? 0.7 : 0.42,
         });
     }
   }
@@ -499,9 +526,9 @@ function drawWarningShimmer(graphics: Graphics, layout: Layout, state: EngineSta
   });
 }
 
-function renderAtmosphere(graphics: Graphics, width: number, height: number) {
+function renderAtmosphere(graphics: Graphics, width: number, height: number, phase: RoundPhase) {
   graphics.clear();
-  drawAtmosphere(graphics, layoutFor(width, height));
+  drawAtmosphere(graphics, layoutFor(width, height), phase);
 }
 
 function renderWorld(
@@ -513,10 +540,11 @@ function renderWorld(
 ) {
   graphics.clear();
   const layout = layoutFor(width, height);
+  const phase = phaseForTick(state.tick);
   const warp = pulseWarpFor(state, layout, allowWarp);
   drawGrid(graphics, layout, warp);
   drawTacticalField(graphics, layout, state);
-  drawCorruption(graphics, layout, state);
+  drawCorruption(graphics, layout, state, phase);
   state.lights.forEach((light) => drawTrail(graphics, layout, light));
   drawRepairs(graphics, layout, state);
 }
@@ -532,7 +560,8 @@ function renderActors(
 ) {
   graphics.clear();
   const layout = layoutFor(width, height);
-  drawCore(graphics, layout, state.health, state.tick);
+  const phase = phaseForTick(state.tick);
+  drawCore(graphics, layout, state.health, state.tick, phase);
   state.lights.forEach((light) =>
     drawLight(graphics, layout, light, interpolation, state.possessedLightId, claimProgress),
   );
@@ -601,24 +630,36 @@ export function PixiArena({ state }: PixiArenaProps) {
         const width = nextApp.screen.width;
         const height = nextApp.screen.height;
         const current = stateRef.current;
+        const phase = phaseForTick(current.tick);
         const allowWarp = !reducedMotion.matches;
         const warpActive = allowWarp && current.pulse.usedAtTick !== null
           && current.tick - current.pulse.usedAtTick >= 0
           && current.tick - current.pulse.usedAtTick <= 12;
         const resized = width !== renderedWidth || height !== renderedHeight;
         if (resized) {
-          renderAtmosphere(atmosphereLayer, width, height);
+          renderAtmosphere(atmosphereLayer, width, height, phase);
           renderedWidth = width;
           renderedHeight = height;
+        } else if (renderedTick !== current.tick) {
+          renderAtmosphere(atmosphereLayer, width, height, phase);
         }
         if (resized || renderedTick !== current.tick || warpActive || lastWarpActive) {
           renderWorld(worldLayer, current, width, height, allowWarp);
           renderedTick = current.tick;
           lastWarpActive = warpActive;
         }
+        if (!reducedMotion.matches && phase !== "probe") {
+          const amplitude = phase === "collapse" ? 1.4 : 0.7;
+          const rate = phase === "collapse" ? 0.085 : 0.055;
+          scene.x = Math.sin(current.tick * rate) * amplitude;
+          scene.y = Math.cos(current.tick * rate * 0.85) * amplitude * 0.65;
+        } else {
+          scene.x = 0;
+          scene.y = 0;
+        }
         const interpolation = reducedMotion.matches
           ? 1
-          : Math.min(1, (performance.now() - updatedAtRef.current) / 150);
+          : Math.min(1, (performance.now() - updatedAtRef.current) / (phase === "surge" ? 120 : 150));
         const claimElapsed = performance.now() - claimAtRef.current;
         const claimProgress =
           reducedMotion.matches || claimAtRef.current === 0 || claimElapsed >= POSSESS_CLAIM_MS

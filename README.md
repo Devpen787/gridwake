@@ -23,7 +23,7 @@ Expected signals: tactic starters, first-run controls hint, live event toast, pr
 1. Pick Solo (or Create/Join a P2P room).
 2. Write a freeform Instinct or tap a tactic starter (Ring Keeper, Edge Hunter, Chain Repair, Ten Percent Ring).
 3. Watch the 45-second round: formation, intercepts, trail repair, one Pulse.
-4. Optionally possess a light (`1`–`3` / touch selectors), step with WASD or the pad, release with Esc / re-tap.
+4. Optionally possess a light (`1`–`3` / touch selectors) for up to six seconds of OVERRIDE energy, step with WASD or the pad (clears only the cell underfoot), release with Esc / re-tap to preserve remaining budget.
 5. Read the grade and receipt; Tune Same Grid to compare attempts on the same seed.
 
 ## What changed during OpenAI Build Week
@@ -58,7 +58,7 @@ Build Week rules require Codex + GPT-5.6 for the judged core. This polish pass w
 
 ## Determinism and replay
 
-Identical seed + compiled strategy + Pulse timing + possession/manual intents ⇒ identical `replayHash`. Polish (font, audio, sparks overlay, HUD) does not enter the hash. Same-seed rematch keeps the seed and shows score / core / instinct deltas versus the prior attempt.
+Identical seed + compiled strategy + Pulse timing + possession/manual intents ⇒ identical `replayHash`. Polish (font, audio, sparks overlay, HUD, phase visuals) does not enter the hash. Same-seed rematch keeps the seed and shows score / core / instinct / override deltas versus the prior attempt. Manual clears are scored as OVERRIDE, never as Instinct impact.
 
 ## P2P beta truth / limitations
 

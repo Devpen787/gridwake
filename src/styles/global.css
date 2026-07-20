@@ -380,8 +380,63 @@ button:disabled { cursor: not-allowed; }
   letter-spacing: .16em;
 }
 
+.possess-roster__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: 6px 14px;
+}
+
 .possess-roster--engaged .possess-roster__label {
   color: var(--core);
+}
+
+.override-meter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #60717d;
+  font-size: .42rem;
+  letter-spacing: .14em;
+}
+
+.override-meter strong {
+  min-width: 1.5rem;
+  color: var(--signal);
+  font-size: .5rem;
+  font-weight: 500;
+}
+
+.override-meter__track {
+  width: 42px;
+  height: 3px;
+  border: 1px solid rgba(64, 232, 255, .28);
+  background: rgba(244, 247, 255, .06);
+}
+
+.override-meter__track > span {
+  display: block;
+  height: 100%;
+  background: var(--signal);
+  box-shadow: 0 0 8px rgba(64, 232, 255, .35);
+}
+
+.possess-roster--spent .override-meter strong {
+  color: #667782;
+}
+
+.possess-roster--spent .override-meter__track > span {
+  background: #667782;
+  box-shadow: none;
+}
+
+.game--phase-surge .pixi-arena-shell {
+  filter: saturate(1.05) contrast(1.02);
+}
+
+.game--phase-collapse .pixi-arena-shell {
+  filter: saturate(1.1) contrast(1.05);
 }
 
 .possess-roster__keys {
@@ -753,6 +808,10 @@ button:disabled { cursor: not-allowed; }
     animation: none !important;
     transform: none !important;
   }
+  .game--phase-surge .pixi-arena-shell,
+  .game--phase-collapse .pixi-arena-shell {
+    filter: none !important;
+  }
   .performance-card,
   .performance-card__grade-letter,
   .performance-card__score-track span {
@@ -850,6 +909,15 @@ button:disabled { cursor: not-allowed; }
 .event-toast--pulse > strong {
   color: var(--core);
   text-shadow: 0 0 14px rgba(244, 247, 255, .35);
+}
+
+.event-toast--phase {
+  border-color: rgba(255, 209, 102, .3);
+  box-shadow: 0 0 28px rgba(255, 209, 102, .08);
+}
+
+.event-toast--phase > strong {
+  color: var(--rescue);
 }
 
 .controls-hint {

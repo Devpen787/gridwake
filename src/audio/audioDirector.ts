@@ -6,6 +6,8 @@ export type GameSound =
   | "damage"
   | "warning"
   | "pulse"
+  | "phase-surge"
+  | "phase-collapse"
   | "round-held"
   | "round-lost";
 
@@ -129,6 +131,20 @@ class AudioDirector {
           { frequency: 130.81, duration: 0.48, type: "sine", gain: 0.065 },
           { frequency: 261.63, duration: 0.42, offset: 0.03, type: "triangle", gain: 0.05 },
           { frequency: 523.25, duration: 0.36, offset: 0.07, type: "sine", gain: 0.04 },
+        ]);
+        break;
+      case "phase-surge":
+        this.sequence([
+          { frequency: 185, duration: 0.16, type: "sawtooth", gain: 0.04, detune: 8 },
+          { frequency: 277, duration: 0.22, offset: 0.08, type: "triangle", gain: 0.045 },
+          { frequency: 370, duration: 0.28, offset: 0.16, type: "sine", gain: 0.035 },
+        ]);
+        break;
+      case "phase-collapse":
+        this.sequence([
+          { frequency: 110, duration: 0.22, type: "sawtooth", gain: 0.055, detune: -18 },
+          { frequency: 82, duration: 0.32, offset: 0.1, type: "triangle", gain: 0.05 },
+          { frequency: 55, duration: 0.4, offset: 0.2, type: "sine", gain: 0.04 },
         ]);
         break;
       case "round-held":

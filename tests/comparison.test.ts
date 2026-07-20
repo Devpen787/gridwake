@@ -16,6 +16,7 @@ const base: RoundReceipt = {
   finalHealth: 70,
   trailRepairs: 3,
   interceptClears: 10,
+  manualClears: 2,
   pulseClears: 6,
   peakThreat: 80,
   damageTaken: 30,
@@ -26,18 +27,20 @@ const base: RoundReceipt = {
 };
 
 describe("same-seed receipt comparison", () => {
-  it("returns score, core, and instinct deltas for comparable attempts", () => {
+  it("returns score, core, instinct, and override deltas for comparable attempts", () => {
     const current = {
       ...base,
       finalHealth: 76,
       instinctImpact: 65,
       gradeScore: 80,
+      manualClears: 5,
       replayHash: "FEEDBEEF",
     };
     expect(compareReceipts(current, base)).toEqual([
       { key: "score", label: "SCORE", value: 8 },
       { key: "core", label: "CORE", value: 6 },
       { key: "instinct", label: "INSTINCT", value: -3 },
+      { key: "override", label: "OVERRIDE", value: 3 },
     ]);
   });
 
