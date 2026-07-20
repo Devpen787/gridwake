@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { gameAudio } from "../audio/audioDirector";
 import {
   activatePulse,
   advanceTick,
@@ -9,6 +10,7 @@ import {
   worstSector,
 } from "../game/engine";
 import { PULSE_CLEAR_CAP, TICK_RATE, type EngineState, type ManualIntent } from "../game/types";
+import { AudioToggle } from "./AudioToggle";
 import {
   ControlsHint,
   markControlsHintSeen,
@@ -89,6 +91,8 @@ export function GameScreen({
   const keysRef = useRef(new Set<string>());
   const lastDamageRef = useRef(initialState.damageTaken);
   const lastPulseUsedRef = useRef(initialState.pulse.usedAtTick);
+  const lastSoundEventRef = useRef<string | null>(null);
+  const lastPossessedSoundRef = useRef(initialState.possessedLightId);
 
   const dismissControlsHint = useCallback(() => {
     markControlsHintSeen();
@@ -100,6 +104,35 @@ export function GameScreen({
     const timeout = window.setTimeout(dismissControlsHint, 7_000);
     return () => window.clearTimeout(timeout);
   }, [dismissControlsHint, showControlsHint]);
+
+  useEffect(() => {
+    const event = state.lastEvent;
+    if (!event) return;
+    const key = `${event.tick}:${event.kind}:${event.message}`;
+    if (lastSoundEventRef.current === key) return;
+    lastSoundEventRef.current = key;
+
+    const sound = event.kind === "damage"
+      ? "damage"
+      : event.kind === "repair"
+        ? "repair"
+        : event.kind === "intercept"
+          ? "intercept"
+          : event.kind === "pulse"
+            ? "pulse"
+            : "warning";
+    gameAudio.play(sound);
+  }, [state.lastEvent]);
+
+  useEffect(() => {
+    if (
+      state.possessedLightId !== null
+      && state.possessedLightId !== lastPossessedSoundRef.current
+    ) {
+      gameAudio.play("possess");
+    }
+    lastPossessedSoundRef.current = state.possessedLightId;
+  }, [state.possessedLightId]);
 
   useEffect(() => {
     let frame = 0;
@@ -257,6 +290,7 @@ export function GameScreen({
         allowPossess={allowPossess}
         onDismiss={dismissControlsHint}
       />
+      <AudioToggle />
       <header className="game-hud game-hud--top">
         <div className={`health-readout health-readout--${band}`}>
           <span>CORE HEALTH</span>

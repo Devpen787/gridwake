@@ -1,6 +1,9 @@
+import { useEffect, useRef } from "react";
+import { gameAudio } from "../audio/audioDirector";
 import { createReceipt } from "../game/engine";
 import { recommendationFor, resultSummary } from "../game/analysis";
 import type { CompiledStrategy, EngineState } from "../game/types";
+import { AudioToggle } from "./AudioToggle";
 import { CoreMark } from "./CoreMark";
 
 type ResultScreenProps = Readonly<{
@@ -31,14 +34,22 @@ export function ResultScreen({
 }: ResultScreenProps) {
   const receipt = createReceipt(state, strategy);
   const held = receipt.outcome === "grid-held";
+  const resultSoundPlayed = useRef(false);
   const heroStats: readonly HeroStat[] = [
     { label: "INTERCEPTS", value: receipt.interceptClears },
     { label: "REPAIRS", value: receipt.trailRepairs },
     { label: "PULSE", value: receipt.pulseClears },
   ];
 
+  useEffect(() => {
+    if (resultSoundPlayed.current) return;
+    resultSoundPlayed.current = true;
+    gameAudio.play(held ? "round-held" : "round-lost");
+  }, [held]);
+
   return (
     <section className={`result screen ${held ? "result--held" : "result--lost"}`} aria-labelledby="result-title">
+      <AudioToggle />
       <div className="truth-label">{truthLabel}</div>
       <div className="result__center">
         <CoreMark size="large" active={held} />

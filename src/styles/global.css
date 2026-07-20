@@ -798,6 +798,39 @@ button:disabled { cursor: not-allowed; }
   font-size: 1rem;
 }
 
+.audio-toggle {
+  position: absolute;
+  z-index: 6;
+  top: 78px;
+  right: 26px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 30px;
+  padding: 0 9px;
+  border: 1px solid rgba(244, 247, 255, .14);
+  background: rgba(3, 6, 10, .72);
+  color: #81919d;
+  cursor: pointer;
+  font-size: .46rem;
+  letter-spacing: .12em;
+}
+
+.audio-toggle:hover,
+.audio-toggle:focus-visible {
+  border-color: rgba(64, 232, 255, .45);
+  color: var(--signal);
+}
+
+.audio-toggle--muted {
+  color: #55656f;
+}
+
+.result > .audio-toggle {
+  position: fixed;
+  top: 26px;
+}
+
 @keyframes event-toast-enter {
   from {
     opacity: 0;
@@ -839,6 +872,15 @@ button:disabled { cursor: not-allowed; }
 
   .event-toast > strong {
     font-size: .52rem;
+  }
+
+  .audio-toggle {
+    top: 54px;
+    right: 12px;
+  }
+
+  .result > .audio-toggle {
+    top: 18px;
   }
 }
 
