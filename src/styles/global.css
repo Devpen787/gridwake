@@ -911,6 +911,10 @@ button:disabled { cursor: not-allowed; }
   min-width: 142px;
 }
 
+.mobile-controls {
+  display: none;
+}
+
 @keyframes event-toast-enter {
   from {
     opacity: 0;
@@ -939,12 +943,73 @@ button:disabled { cursor: not-allowed; }
 }
 
 @media (pointer: coarse) and (max-width: 900px) {
+  .mobile-controls {
+    position: fixed;
+    z-index: 6;
+    right: 12px;
+    bottom: max(18px, env(safe-area-inset-bottom));
+    left: 12px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    pointer-events: none;
+  }
+
+  .mobile-light-select,
+  .mobile-step-pad {
+    pointer-events: auto;
+  }
+
+  .mobile-light-select {
+    display: flex;
+    gap: 7px;
+  }
+
+  .mobile-light-select button,
+  .mobile-step-pad button {
+    min-width: 44px;
+    min-height: 44px;
+    border: 1px solid rgba(64, 232, 255, .28);
+    background: rgba(3, 6, 10, .78);
+    color: #8fa0ac;
+  }
+
+  .mobile-light-select button[aria-pressed="true"] {
+    border-color: var(--core);
+    color: var(--core);
+    box-shadow: 0 0 18px rgba(244, 247, 255, .16);
+  }
+
+  .mobile-step-pad {
+    display: grid;
+    grid-template-areas:
+      ". up ."
+      "left down right";
+    gap: 4px;
+  }
+
+  .mobile-step--up { grid-area: up; }
+  .mobile-step--left { grid-area: left; }
+  .mobile-step--right { grid-area: right; }
+  .mobile-step--down { grid-area: down; }
+
+  .mobile-step-pad button:disabled {
+    opacity: .28;
+  }
+
   .controls-hint {
     top: 64px;
     right: 12px;
     bottom: auto;
     left: 12px;
     max-width: none;
+  }
+}
+
+@media (max-height: 700px) and (pointer: coarse) {
+  .mobile-controls {
+    transform: scale(.88);
+    transform-origin: bottom center;
   }
 }
 

@@ -17,6 +17,7 @@ import {
   shouldShowControlsHint,
 } from "./ControlsHint";
 import { EventToast } from "./EventToast";
+import { MobileControls } from "./MobileControls";
 import { PixiArena } from "./PixiArena";
 
 type GameScreenProps = Readonly<{
@@ -292,6 +293,21 @@ export function GameScreen({
         onDismiss={dismissControlsHint}
       />
       <AudioToggle />
+      {allowPossess ? (
+        <MobileControls
+          lights={state.lights}
+          possessedLightId={state.possessedLightId}
+          disabled={state.ended}
+          onPossess={(lightId) => {
+            dismissControlsHint();
+            setState((current) => setPossession(current, lightId));
+          }}
+          onMove={(intent) => {
+            dismissControlsHint();
+            setState((current) => queueManualIntent(current, intent));
+          }}
+        />
+      ) : null}
       <header className="game-hud game-hud--top">
         <div className={`health-readout health-readout--${band}`}>
           <span>CORE HEALTH</span>
