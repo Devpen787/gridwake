@@ -80,7 +80,7 @@ unverified. Never add a new mechanic, screen, or dependency that no current gate
   landing footer renders `ROUND_SECONDS`. Docs that described the current slice as
   60 seconds were aligned in Prompt 01.
 - Polish gates 01–07 landed with one commit each; Prompt 08 closes verified UI defects.
-  Production aliased to https://gridwake.vercel.app (`dpl_3QSRiouEqBWTcMUVnpJK26TKXcaf`).
+  Production aliased to https://gridwake.vercel.app (`dpl_A6v9V47zfayVNMvZHt6MFQk6Bf3h`).
   Session ID for Build Week `/feedback` remains `PENDING` until a real Codex ID is pasted.
 - Solo Instinct Causality v2 is playable and deterministic.
 - 90 TypeScript tests pass (including round-duration source-of-truth), plus Python golden parity and
