@@ -59,7 +59,8 @@ on `instinct-runtime-v2`.
 - [x] Browser: strategy lab (`LOCAL-INSTINCT-V2`), contradiction WAKE-disabled,
       Edge Hunter interpretation (spread / R14 / erratic / highest-pressure / 3 /
       leash 6). Screenshots in `docs/instinct-runtime-v2/`.
-- [ ] Commit on `instinct-runtime-v2` only (no merge, no deploy).
+- [x] Commit on `instinct-runtime-v2` only (no merge, no deploy):
+      `c501c33080ee9bee500f1f6ea64ae540c38ea8a7`.
 
 ## Stop conditions
 
