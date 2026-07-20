@@ -83,7 +83,7 @@ Disclosure: this polish pass was implemented in Cursor rather than a separate Co
 - QA checklist: [`docs/RELEASE_QA.md`](RELEASE_QA.md)
 - Screenshots: *pending capture into `demo/screenshots/` after production deploy*
 - Deployment commit (pre–Prompt 08 alias): tip of `demo-final-polish` at docs gate `2f6c1f0`
-- Vercel production deploy: `dpl_3QSRiouEqBWTcMUVnpJK26TKXcaf`
+- Vercel production deploy (final tip): `dpl_A6v9V47zfayVNMvZHt6MFQk6Bf3h`
 - Aliased URL: https://gridwake.vercel.app
-- Inspect: https://vercel.com/devinsons-projects-b5ab981e/gridwake/3QSRiouEqBWTcMUVnpJK26TKXcaf
-- Final polish SHA after Prompt 08: *fce5c76*
+- Inspect: https://vercel.com/devinsons-projects-b5ab981e/gridwake/A6v9V47zfayVNMvZHt6MFQk6Bf3h
+- Final polish SHA after Prompt 08: `b4f3fe4` (docs tip `6a1211d`)
