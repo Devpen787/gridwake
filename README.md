@@ -4,7 +4,7 @@
 
 Play the production preview: **https://gridwake.vercel.app**
 
-GRIDWAKE is a minimalist 60-second strategy game. Players tell a three-light
+GRIDWAKE is a minimalist 45-second strategy game. Players tell a three-light
 squad how to protect a neon grid; the current local interpreter converts that
 sentence into a bounded Instinct, and a seeded engine makes the behavior varied
 but exactly replayable.
@@ -19,7 +19,7 @@ one tactical sentence resolves as visible formation, protected radius,
 interceptor count, pursuit limit, movement character, focus, risk, and Pulse
 guidance. The squad now holds formation, takes bounded intercept assignments,
 returns when threats leave range, and uses seeded path variation. A deterministic
-60-second grid resolves at 10 logical ticks/second, one Pulse can be spent, and
+45-second grid resolves at 10 logical ticks/second, one Pulse can be spent, and
 the result includes a reproducible local receipt.
 
 The compiler is deliberately labeled `LOCAL PROTOTYPE`. Multiplayer uses a
@@ -32,10 +32,9 @@ and cross-network restrictive-NAT proof are not complete yet. The production
 preview is deployed, but P2P availability still depends on the players' networks
 and third-party discovery infrastructure.
 
-The playable cell engine passes its current Instinct Runtime gate: 84 TypeScript
-tests (engine, room reducer, result analysis, a 35-case Instinct compiler corpus,
-compiler provenance reading, and per-role squad composition), independent Python
-golden-vector parity, and 192 calibration rounds. In multiplayer each player's
+The playable cell engine passes its current Instinct Runtime gate: the full
+TypeScript suite plus Python golden-vector parity and sensitivity validation.
+In multiplayer each player's
 sentence owns their role's dials (guardian: shape/radius/movement/pulse, scout:
 interceptors/pursuit/risk, mender: link focus); sentences are no longer blended. Four
 reference tactics produce different paths and metrics; close defense, wide

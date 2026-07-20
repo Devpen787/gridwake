@@ -1,3 +1,4 @@
+import { ROUND_SECONDS } from "../game/types";
 import { CoreMark } from "./CoreMark";
 import type { PolicyKind } from "./PolicyScreen";
 
@@ -34,7 +35,7 @@ export function LandingScreen({ onSolo, onCreateRoom, onJoinRoom, onPolicy }: La
         </nav>
       </div>
       <footer className="landing__footer">
-        <span>45 SECONDS</span>
+        <span>{ROUND_SECONDS} SECONDS</span>
         <span>ONE PULSE</span>
         <span>SHARED SURVIVAL</span>
       </footer>

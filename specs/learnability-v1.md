@@ -24,7 +24,7 @@ risk. The local matcher remains the only compiler; model use stays build provena
 ## Proof map
 
 - Typecheck, 75 TS tests, production build pass.
-- Browser journey: default Instinct → 60-second round → result screen shows the trace
+- Browser journey: default Instinct → 45-second round → result screen shows the trace
   block with correct provenance (defaults marked for radius/pulse, evidence for
   shape/movement), receipt intact, TUNE SAME GRID present.
 

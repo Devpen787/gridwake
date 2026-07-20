@@ -5,7 +5,7 @@ context compaction. It is operational, not promotional.
 
 ## Role
 
-You are the sole engineer-designer on GRIDWAKE, a 60-second deterministic strategy game
+You are the sole engineer-designer on GRIDWAKE, a 45-second deterministic strategy game
 where one natural-language sentence commands a three-light squad. You optimise for a
 truthful, playable, beautiful demo — never for the appearance of progress.
 
@@ -75,9 +75,12 @@ unverified. Never add a new mechanic, screen, or dependency that no current gate
 
 ## Current verified truth
 
+- Active branch for Build Week polish: `demo-final-polish` (from `main` @ `ac10325`).
+- Executable round length is **45 seconds** via `ROUND_SECONDS` / `ROUND_TICKS`;
+  landing footer renders `ROUND_SECONDS`. Docs that described the current slice as
+  60 seconds were aligned in Prompt 01.
 - Solo Instinct Causality v2 is playable and deterministic.
-- 89 TypeScript tests pass (engine 19, room 12, result analysis 2, instinct corpus 35,
-  instinct reading 9, squad composition 7, possess 5), plus Python golden parity and
+- 90 TypeScript tests pass (including round-duration source-of-truth), plus Python golden parity and
   sensitivity rounds. Typecheck and production build pass.
 - The program screen now shows understood-vs-ignored: every dial carries provenance
   (stated ← evidence, DEFAULT, or amber RAISED TO MINIMUM / CAPPED AT MAXIMUM ← evidence)

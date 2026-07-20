@@ -4,7 +4,7 @@ Date: 2026-07-18
 
 ## Current truth to preserve
 
-- The landing → strategy → awakening → 60-second round → receipt path works.
+- The landing → strategy → awakening → 45-second round → receipt path works.
 - The engine is deterministic for a fixed seed, strategy policy, and Pulse tick.
 - The accepted visual direction is Phosphor Noir: a near-black field, cold grid,
   white core, cyan/amber/violet lights, red corruption, and minimal HUD.

@@ -18,7 +18,7 @@ Reference: `design/reference/gameplay-north-star.png`
 
 ## Typography
 
-- Content/display: `IBM Plex Mono`, system monospace fallback.
+- Content/display: `IBM Plex Mono` via `@fontsource/ibm-plex-mono` (weights 400 and 500), with system monospace fallback.
 - Utility/HUD: uppercase, 0.12–0.2em tracking, tabular numerals.
 - Long policy text uses a readable system sans fallback.
 

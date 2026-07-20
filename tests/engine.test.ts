@@ -22,6 +22,7 @@ import {
   LOOKAHEAD_CELLS,
   PULSE_CLEAR_CAP,
   PULSE_SHIELD_TICKS,
+  ROUND_SECONDS,
   ROUND_TICKS,
   TICK_RATE,
 } from "../src/game/types";
@@ -52,7 +53,7 @@ describe("GRIDWAKE local deterministic engine", () => {
   });
 
   it("runs a fast 45-second default round", () => {
-    expect(ROUND_TICKS).toBe(45 * TICK_RATE);
+    expect(ROUND_TICKS).toBe(ROUND_SECONDS * TICK_RATE);
   });
 
   it("keeps all canonical values inside bounds", () => {

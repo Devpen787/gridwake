@@ -17,7 +17,7 @@ Date: 2026-07-18
 - A locally runnable React + TypeScript + Vite app.
 - Landing, solo strategy, awakening, live round, and result states.
 - Three clearly labeled solo squad lights compiled from one strategy.
-- A deterministic 60-second client-local engine at 10 logical ticks/second.
+- A deterministic 45-second client-local engine at 10 logical ticks/second.
 - PixiJS rendering with interpolation, Phosphor Noir grid, trails, corruption,
   repair stitching, central core, pulse shockwave, and minimal HUD.
 - One pulse per round, available through button and Space.
@@ -110,7 +110,7 @@ explicitly unimplemented.
 - `npm run typecheck`: pass.
 - `npm test -- --run`: 6/6 tests pass.
 - `npm run build`: pass; production bundle emitted.
-- Browser: landing → compile → awakening → live 60-second round → receipt →
+- Browser: landing → compile → awakening → live 45-second round → receipt →
   play again passed.
 - Browser: one Pulse activation changed the control to disabled `PULSE SPENT`;
   a second activation was unavailable.
