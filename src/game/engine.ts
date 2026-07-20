@@ -526,20 +526,41 @@ function resolveIntercepts(
   tick: number,
   policy: StrategyPolicy,
 ): { corruption: Set<string>; clearPoints: Point[] } {
-  if (tick % 4 !== 0) return { corruption, clearPoints: [] };
   const remaining = new Set(corruption);
   const clearPoints: Point[] = [];
   const maximumClearRange = policy.engagementRadius + policy.pursuitLimit;
-  for (const light of lights.filter((candidate) => candidate.mode === "intercept" || candidate.mode === "manual")) {
-    // Manual override clears any nearby breach (within 3). Autopilot interceptors
-    // still respect the Instinct engagement bubble around the core.
+
+  for (const light of lights) {
+    if (light.mode === "manual") {
+      // Possessed lights clear every other tick: everything underfoot / adjacent,
+      // so driving through a breach visibly removes reds.
+      if (tick % 2 !== 0) continue;
+      const local = [...remaining]
+        .map(parseCellKey)
+        .filter((point) => manhattan(light, point) <= 1)
+        .toSorted((a, b) => (
+          manhattan(light, a) - manhattan(light, b) ||
+          a.y - b.y ||
+          a.x - b.x
+        ));
+      for (const point of local) {
+        const key = cellKey(point.x, point.y);
+        if (!remaining.has(key)) continue;
+        remaining.delete(key);
+        clearPoints.push(point);
+      }
+      continue;
+    }
+
+    if (light.mode !== "intercept") continue;
+    if (tick % 4 !== 0) continue;
+
     const target = [...remaining]
       .map(parseCellKey)
-      .filter((point) => {
-        if (manhattan(light, point) > 3) return false;
-        if (light.mode === "manual") return true;
-        return manhattan(point, CORE_POINT) <= maximumClearRange;
-      })
+      .filter((point) =>
+        manhattan(light, point) <= 3
+        && manhattan(point, CORE_POINT) <= maximumClearRange
+      )
       .toSorted((a, b) => (
         manhattan(a, CORE_POINT) - manhattan(b, CORE_POINT) ||
         manhattan(light, a) - manhattan(light, b) ||
@@ -593,6 +614,24 @@ export function setPossession(state: EngineState, lightId: string | null): Engin
     ...state,
     possessedLightId: lightId,
     manualIntent: null,
+    lights: state.lights.map((light) => {
+      if (lightId !== null && light.id === lightId) {
+        return {
+          ...light,
+          mode: "manual" as const,
+          intention: `MANUAL / ${light.x}:${light.y}`,
+          reason: "POSSESSED · WASD",
+        };
+      }
+      if (state.possessedLightId !== null && light.id === state.possessedLightId) {
+        return {
+          ...light,
+          mode: "formation" as const,
+          reason: "RELEASED · RETURNING",
+        };
+      }
+      return light;
+    }),
     replayHash: hashEvent(state.replayHash, `possess|${state.tick}|${lightId ?? "none"}`),
   };
 }

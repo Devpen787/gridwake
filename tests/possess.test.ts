@@ -81,22 +81,32 @@ describe("possess light override", () => {
     expect(empty).toBe(state);
   });
 
-  it("clears nearby edge corruption while possessed even outside the Instinct bubble", () => {
+  it("clears the corruption cell under a possessed light on the next clear tick", () => {
     const ring = compileStrategy(
       "Guard the core in a tight disciplined ring. Send two units within 25% and do not chase. Pulse below 45% health.",
     );
     let state = createInitialState(11, ring, 80);
-    expect(state.policy.engagementRadius + state.policy.pursuitLimit).toBeLessThan(10);
     const lightId = state.lights[0].id;
     const edgeKey = [...state.corruption].find((key) => {
-      const point = key.includes(":")
-        ? { x: Number(key.split(":")[0]), y: Number(key.split(":")[1]) }
-        : { x: 0, y: 0 };
-      return Math.abs(point.x - 15) + Math.abs(point.y - 9) > 10;
+      const [x, y] = key.split(":").map(Number);
+      return Math.abs(x - 15) + Math.abs(y - 9) > 10;
     });
     expect(edgeKey).toBeTruthy();
     const [edgeX, edgeY] = edgeKey!.split(":").map(Number);
+
+    // Seed a denser local cluster so old core-first sorting would skip the occupied cell.
+    const cluster = [
+      edgeKey!,
+      `${edgeX + 1}:${edgeY}`,
+      `${edgeX}:${edgeY + 1}`,
+      `${Math.max(0, edgeX - 1)}:${edgeY}`,
+    ];
+    state = {
+      ...state,
+      corruption: new Set([...state.corruption, ...cluster]),
+    };
     state = setPossession(state, lightId);
+    expect(state.lights.find((light) => light.id === lightId)?.mode).toBe("manual");
     state = {
       ...state,
       lights: state.lights.map((light) =>
@@ -113,10 +123,9 @@ describe("possess light override", () => {
           : light
       ),
     };
-    while (state.tick % 4 !== 3) state = advanceTick(state);
+    while (state.tick % 2 !== 1) state = advanceTick(state);
     expect(state.corruption.has(edgeKey!)).toBe(true);
     state = advanceTick(state);
     expect(state.corruption.has(edgeKey!)).toBe(false);
-    expect(state.interceptClears).toBeGreaterThan(0);
   });
 });

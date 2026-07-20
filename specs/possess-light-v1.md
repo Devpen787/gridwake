@@ -14,8 +14,9 @@ Solo players can possess one light at a time:
 - While possessed, that light ignores Instinct assignment. WASD / arrows queue one
   orthogonal step per move tick (same budget as autopilot: even ticks, one cell,
   no stacking). With no input it holds.
-- Possessed lights clear any corruption within 3 cells (so driving into an edge
-  breach works). Autopilot interceptors still respect the Instinct engagement
+- Possessed lights clear corruption underfoot and in adjacent cells every move
+  tick, so driving through a breach removes red immediately. Autopilot
+  interceptors still clear one cell every 0.4s inside the Instinct engagement
   bubble around the core.
 - Other lights stay on Instinct.
 - Quiet UI: bottom roster maps `1`/`2`/`3` to colour + role; engaged state shows
