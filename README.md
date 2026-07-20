@@ -2,98 +2,102 @@
 
 **One sentence. One light. One shared grid.**
 
-Play the production preview: **https://gridwake.vercel.app**
+## Play the demo
 
-GRIDWAKE is a minimalist 45-second strategy game. Players tell a three-light
-squad how to protect a neon grid; the current local interpreter converts that
-sentence into a bounded Instinct, and a seeded engine makes the behavior varied
-but exactly replayable.
+Production preview: **https://gridwake.vercel.app**
 
-## Current truth
+GRIDWAKE is a deterministic **45-second** strategy game. Write one sentence, wake a three-light squad, and hold a neon grid. A local keyword compiler turns the sentence into bounded Instinct dials; a seeded engine makes the round varied but exactly replayable.
 
-This folder now contains a playable **Solo Architect vertical slice** and a
-**2-3 player P2P beta** plus the
-full product/operation/governance specification, executable sector-level math
-reference, policies, and threat-model draft. The slice runs locally in a browser:
-one tactical sentence resolves as visible formation, protected radius,
-interceptor count, pursuit limit, movement character, focus, risk, and Pulse
-guidance. The squad now holds formation, takes bounded intercept assignments,
-returns when threats leave range, and uses seeded path variation. A deterministic
-45-second grid resolves at 10 logical ticks/second, one Pulse can be spent, and
-the result includes a reproducible local receipt.
+## 60-second judge path
 
-The compiler is deliberately labeled `LOCAL PROTOTYPE`. Multiplayer uses a
-player-hosted ordered log over encrypted WebRTC data channels with Nostr peer
-discovery: no account or application database is required. Pulse is ordered by
-the host and replay hashes are compared every five seconds. This is not server
-authority; the host can cheat, receipts are unsigned, live reconnect is disabled,
-and network metadata may be visible to peers/infrastructure. Moderation, audio,
-and cross-network restrictive-NAT proof are not complete yet. The production
-preview is deployed, but P2P availability still depends on the players' networks
-and third-party discovery infrastructure.
+This is the time needed to evaluate the demo, not the round duration.
 
-The playable cell engine passes its current Instinct Runtime gate: the full
-TypeScript suite plus Python golden-vector parity and sensitivity validation.
-In multiplayer each player's
-sentence owns their role's dials (guardian: shape/radius/movement/pulse, scout:
-interceptors/pursuit/risk, mender: link focus); sentences are no longer blended. Four
-reference tactics produce different paths and metrics; close defense, wide
-coverage, interceptor count, and Pulse timing now have measurable trade-offs.
-These fixtures prove reproducibility and sensitivity, not production balance or
-fun. The separate future multiplayer sector abstraction remains too binary and
-is still blocked.
+```text
+Open preview → SOLO → choose RING KEEPER → WAKE → press 1 and move → press Esc → use Space when Pulse says FIRE → inspect grade → TUNE SAME GRID.
+```
 
-## Start here
+Expected signals: tactic starters, first-run controls hint, live event toast, procedural audio (after a click), grade-first result, and a `VS LAST ATTEMPT` strip after the second same-seed round.
 
-1. [Solo vertical-slice contract](specs/solo-architect-vertical-slice.md)
-2. [Instinct Runtime v1 contract](specs/instinct-runtime-v1.md)
-3. [Instinct Runtime math audit](docs/GRIDWAKE_INSTINCT_RUNTIME_V1_AUDIT.md)
-4. [Phosphor Noir visual system](design/PHOSPHOR_NOIR.md)
-5. [Multiplayer authority audit](docs/GRIDWAKE_MULTIPLAYER_AUDIT.md)
-6. [Master blueprint](docs/GRIDWAKE_BLUEPRINT.md)
-7. [Complete user paths](docs/GRIDWAKE_USER_PATHS.md)
-8. [Formal validation](docs/GRIDWAKE_FORMAL_VALIDATION.md)
-9. [Design threat model](docs/GRIDWAKE_DESIGN_THREAT_MODEL_DRAFT.md)
-10. [Machine-readable product states](product-path-model.yaml)
-11. [Terms draft](policies/TERMS_DRAFT.md), [privacy draft](policies/PRIVACY_DRAFT.md),
-   and [community rules](policies/COMMUNITY_RULES.md)
+## What the player does
 
-## Run the playable slice
+1. Pick Solo (or Create/Join a P2P room).
+2. Write a freeform Instinct or tap a tactic starter (Ring Keeper, Edge Hunter, Chain Repair, Ten Percent Ring).
+3. Watch the 45-second round: formation, intercepts, trail repair, one Pulse.
+4. Optionally possess a light (`1`–`3` / touch selectors), step with WASD or the pad, release with Esc / re-tap.
+5. Read the grade and receipt; Tune Same Grid to compare attempts on the same seed.
+
+## What changed during OpenAI Build Week
+
+Branch `demo-final-polish` adds judge-trust and demo polish on top of the playable solo + P2P slice:
+
+| Gate | Commit subject |
+| --- | --- |
+| Prompt 01 | `chore: align executable truth and release checks` |
+| Prompt 02 | `feat: teach tactics and surface live events` |
+| Prompt 03 | `feat: add procedural game audio` |
+| Prompt 04 | `feat: compare same-seed attempts` |
+| Prompt 05 | `feat: intensify phosphor arena feedback` |
+| Prompt 06 | `feat: add touch possession controls` |
+| Prompt 07 | `docs: prepare judge path and build evidence` |
+
+Evidence and dated SHAs: [`docs/BUILD_WEEK_EXTENSION.md`](docs/BUILD_WEEK_EXTENSION.md).
+
+## How Codex and GPT-5.6 were used
+
+Build Week rules require Codex + GPT-5.6 for the judged core. This polish pass was executed in Cursor against the GRIDWAKE Implementation Pack (Prompts 01–08). Primary `/feedback` Session ID: see `docs/BUILD_WEEK_EXTENSION.md` (placeholder until a real Codex `/feedback` ID is pasted — never fabricated).
+
+**Runtime:** the sentence compiler is still a **local** keyword matcher. There is no OpenAI API call during play.
+
+## Architecture
+
+- **Engine:** pure TypeScript, 10 Hz logical ticks, seeded LCG/hash helpers, replay hash over simulation state.
+- **UI:** React product flow + accessible DOM HUD.
+- **Render:** Pixi.js arena (interpolation, trails, corruption, Pulse warp, sparks) — render-only; does not mutate engine state.
+- **Audio:** procedural Web Audio cues; mute preference in `localStorage`; unlock after first gesture.
+- **Multiplayer:** Trystero P2P host-ordered log; checkpoint hashes; not server-authoritative.
+
+## Determinism and replay
+
+Identical seed + compiled strategy + Pulse timing + possession/manual intents ⇒ identical `replayHash`. Polish (font, audio, sparks overlay, HUD) does not enter the hash. Same-seed rematch keeps the seed and shows score / core / instinct deltas versus the prior attempt.
+
+## P2P beta truth / limitations
+
+- Host-ordered input; host can cheat.
+- Receipts are local and unsigned.
+- Live mid-round reconnect is disabled.
+- Restrictive-NAT / custom TURN is **not** proven.
+- Solo possession is disabled in rooms; Pulse is host-scheduled.
+
+## Run and verify locally
 
 ```bash
-cd /Users/devinsonpena/Documents/Hackathons/gridwake
-npm install
+npm ci
 npm run dev
 ```
 
-Then open the local URL printed by Vite. Verification commands:
+Full gate (typecheck, tests, build, Python golden parity, sensitivity):
 
 ```bash
-npm run typecheck
-npm test
-npm run build
-./node_modules/.bin/vite-node validation/run_sensitivity.ts
-python3 -m unittest discover -s validation -p 'test_*reference.py'
+npm run verify
 ```
 
-## Run the design reference
+Requires Node 22+ and Python 3.12 (`python3.12` on PATH for golden validation).
 
-```bash
-cd /Users/devinsonpena/Documents/Hackathons/gridwake/validation
-python3 gridwake_reference.py --write-artifacts --seed-count 200
-python3 -m unittest -v test_gridwake_reference.py
-```
+## Known limitations
 
-## Hackathon fit
+- No runtime model compiler; local matcher only.
+- No signed/server receipts or leaderboards.
+- Cross-network restrictive-NAT failure path unproven.
+- Balance is provisional; fixtures prove reproducibility, not “fun.”
+- Demo video / screenshot assets may still be pending under `demo/` and `docs/BUILD_WEEK_EXTENSION.md`.
 
-The intended track is **Apps for Your Life**. The official OpenAI Build Week
-rules explicitly allow games, require Codex and GPT-5.6, a working runnable
-project, a sub-three-minute public YouTube demo, a repository, clear Codex
-collaboration documentation, and a `/feedback` Codex session ID. Deadline:
-July 21, 2026 at 5:00 PM Pacific. Verify all details against the
-[official rules](https://openai.devpost.com/rules) before submission.
+## Specs and deeper docs
 
-The current demo proves a solo Instinct loop. GPT-5.6/Codex build provenance is
-separate from runtime AI. A future ChatGPT connection or server-authoritative
-room must be implemented and demonstrated before either can be claimed as a
-live game capability.
+1. [Solo vertical-slice contract](specs/solo-architect-vertical-slice.md)
+2. [Instinct Runtime v1](specs/instinct-runtime-v1.md)
+3. [Phosphor Noir](design/PHOSPHOR_NOIR.md)
+4. [Multiplayer authority audit](docs/GRIDWAKE_MULTIPLAYER_AUDIT.md)
+5. [Build Week extension record](docs/BUILD_WEEK_EXTENSION.md)
+6. [Demo script](demo/demo-script.md)
+7. [Release QA checklist](docs/RELEASE_QA.md)
+8. [Policies](policies/TERMS_DRAFT.md)
