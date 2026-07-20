@@ -86,6 +86,10 @@ unverified. Never add a new mechanic, screen, or dependency that no current gate
 - 102 TypeScript tests pass (including possession attribution, OVERRIDE budget,
   phase boundaries), plus Python golden parity and sensitivity rounds. Typecheck
   and production build pass via `npm run verify` after the possession-truth slice.
+- Authored visual communication pass: StrategyPreview on ProgramScreen; corruption
+  crust/veins/collapse; role-specific glyphs; impulse-only camera; result over
+  frozen arena; Web Audio ambience bed; coarse-pointer roster hide + hold-to-repeat.
+  Screenshots in `docs/visual-pass-2026-07-20/`.
 - Possession truth: `manualClears` separate from `interceptClears`;
   `OVERRIDE_MAX_TICKS=60`; occupy-only manual clear; `phaseForTick` PROBE/SURGE/
   COLLAPSE; result shows INSTINCT/OVERRIDE/REPAIRS/PULSE; comparison includes OVERRIDE.

@@ -12,8 +12,25 @@ import {
   type Point,
   type RoundPhase,
 } from "../game/types";
+import {
+  type CameraImpulse,
+  type CellVisual,
+  cameraOffset,
+  collapseProgress,
+  coreDistance,
+  crustProgress,
+  frontierAggression,
+  isRimCell,
+  nearestRimNeighbor,
+  pressureTowardCore,
+  syncCorruptionVisuals,
+  veinHash,
+} from "./arena-fx";
 
-type PixiArenaProps = Readonly<{ state: EngineState }>;
+type PixiArenaProps = Readonly<{
+  state: EngineState;
+  frozen?: boolean;
+}>;
 
 type Layout = Readonly<{ cell: number; originX: number; originY: number; width: number; height: number }>;
 
@@ -74,21 +91,33 @@ function displacePoint(x: number, y: number, warp: PulseWarp | null): Readonly<{
   };
 }
 
-function drawAtmosphere(graphics: Graphics, layout: Layout, phase: RoundPhase) {
+function drawAtmosphere(graphics: Graphics, layout: Layout, phase: RoundPhase, frozen: boolean) {
   const cx = pxX(layout, CORE_X);
   const cy = pxY(layout, CORE_Y);
   const vignetteBoost = phase === "collapse" ? 1.18 : phase === "surge" ? 1.06 : 1;
-  graphics.circle(cx, cy, layout.cell * 12 * vignetteBoost).fill({ color: 0x07141c, alpha: phase === "collapse" ? 0.82 : 0.7 });
-  graphics.circle(cx, cy, layout.cell * 11).fill({ color: 0x0a1a24, alpha: phase === "collapse" ? 0.68 : 0.55 });
+  graphics.circle(cx, cy, layout.cell * 12 * vignetteBoost).fill({
+    color: 0x07141c,
+    alpha: frozen ? 0.88 : phase === "collapse" ? 0.82 : 0.7,
+  });
+  graphics.circle(cx, cy, layout.cell * 11).fill({
+    color: 0x0a1a24,
+    alpha: frozen ? 0.72 : phase === "collapse" ? 0.68 : 0.55,
+  });
   graphics.circle(cx, cy, layout.cell * (phase === "collapse" ? 5.2 : 6)).fill({
     color: 0x102838,
     alpha: phase === "collapse" ? 0.48 : 0.35,
   });
+  if (frozen) {
+    graphics.rect(layout.originX - 40, layout.originY - 40, layout.width + 80, layout.height + 80).fill({
+      color: 0x03060a,
+      alpha: 0.42,
+    });
+  }
   const borderAlpha = phase === "surge" ? 0.34 : phase === "collapse" ? 0.42 : 0.22;
   graphics.rect(layout.originX, layout.originY, layout.width, layout.height).stroke({
     color: phase === "collapse" ? 0xff4d6d : 0x40e8ff,
     width: phase === "probe" ? 1.2 : 1.45,
-    alpha: borderAlpha,
+    alpha: frozen ? borderAlpha * 0.55 : borderAlpha,
   });
 }
 
@@ -128,53 +157,61 @@ function drawGrid(graphics: Graphics, layout: Layout, warp: PulseWarp | null) {
 function drawTacticalField(graphics: Graphics, layout: Layout, state: EngineState) {
   for (const light of state.lights) {
     if (light.mode !== "intercept" && light.mode !== "manual") continue;
-    const fromX = pxX(layout, light.x);
-    const fromY = pxY(layout, light.y);
-    const toX = pxX(layout, light.target.x);
-    const toY = pxY(layout, light.target.y);
-    graphics.moveTo(fromX, fromY).lineTo(toX, toY).stroke({
+    const x = pxX(layout, light.x);
+    const y = pxY(layout, light.y);
+    graphics.circle(x, y, layout.cell * (light.mode === "manual" ? 2.4 : 1.8)).stroke({
       color: light.color,
-      width: light.mode === "manual" ? 1.4 : 1.15,
+      width: 1,
       alpha: light.mode === "manual" ? 0.55 : 0.42,
     });
-    graphics.circle(toX, toY, Math.max(2.5, layout.cell * 0.16)).stroke({
+    graphics.circle(x, y, layout.cell * 0.9).stroke({
       color: light.color,
-      width: 1.1,
+      width: 0.8,
       alpha: 0.5 + light.urgency / 280,
     });
   }
 }
 
-function drawCorruption(graphics: Graphics, layout: Layout, state: EngineState, phase: RoundPhase) {
-  const aggression = phase === "collapse" ? 1.22 : phase === "surge" ? 1.08 : 1;
-  for (const key of state.corruption) {
+function drawCorruption(
+  graphics: Graphics,
+  layout: Layout,
+  state: EngineState,
+  phase: RoundPhase,
+  visuals: ReadonlyMap<string, CellVisual>,
+  reducedMotion: boolean,
+) {
+  const aggression = frontierAggression(phase);
+  const livingKeys = [...visuals.keys()].toSorted();
+
+  for (const key of livingKeys) {
+    const visual = visuals.get(key);
+    if (!visual) continue;
     const point = parseCellKey(key);
+    const grow = crustProgress(visual, state.tick, reducedMotion);
+    const die = collapseProgress(visual, state.tick, reducedMotion);
+    if (die >= 1) continue;
+    const life = (1 - die) * (0.35 + grow * 0.65);
     const x = layout.originX + point.x * layout.cell;
     const y = layout.originY + point.y * layout.cell;
-    const edgeBias = Math.min(
-      point.x,
-      point.y,
-      GRID_COLUMNS - 1 - point.x,
-      GRID_ROWS - 1 - point.y,
-    );
-    const onRim = edgeBias <= 1;
-    const nearRim = edgeBias <= 2;
-    const nearCore = manhattan(point, CORE_POINT) <= 5;
+    const onRim = isRimCell(point, GRID_COLUMNS, GRID_ROWS);
+    const nearCore = coreDistance(point) <= 5;
     const hash = (point.x * 17 + point.y * 31 + state.seed) & 7;
-    const inset = Math.max(0.8, layout.cell * (onRim ? 0.02 : nearRim ? 0.06 : 0.12));
-    const fillAlpha = Math.min(1, (onRim ? 0.96 : nearRim ? 0.84 : nearCore ? 0.7 : 0.55) * aggression);
-    const strokeAlpha = Math.min(1, (onRim ? 0.95 : nearRim ? 0.78 : nearCore ? 0.7 : 0.42) * aggression);
-    const frontierHot = phase !== "probe" && (onRim || nearRim);
+    const scale = reducedMotion ? 1 : 0.55 + grow * 0.45;
+    const insetBase = Math.max(0.8, layout.cell * (onRim ? 0.02 : 0.1));
+    const inset = insetBase + (1 - scale) * layout.cell * 0.2 + die * layout.cell * 0.28;
+    const fillAlpha = Math.min(1, (onRim ? 0.96 : nearCore ? 0.62 : 0.52) * aggression * life);
+    const strokeAlpha = Math.min(1, (onRim ? 0.95 : 0.55) * aggression * life);
+    const pressure = pressureTowardCore(point);
 
-    if (nearCore) {
-      graphics.circle(pxX(layout, point.x), pxY(layout, point.y), layout.cell * (0.62 * aggression)).fill({
+    if (nearCore && !onRim) {
+      graphics.circle(pxX(layout, point.x), pxY(layout, point.y), layout.cell * 0.5 * life).fill({
         color: 0xff4d6d,
-        alpha: phase === "collapse" ? 0.22 : 0.14,
+        alpha: 0.1 * life,
       });
     }
 
     if (onRim) {
-      const jag = layout.cell * (0.08 + (hash % 4) * 0.04) * (phase === "collapse" ? 1.25 : 1);
+      const jag = layout.cell * (0.08 + (hash % 4) * 0.04) * (phase === "collapse" ? 1.25 : 1) * scale;
       const poly = [
         x + inset,
         y + inset + (hash & 1 ? jag : 0),
@@ -186,79 +223,97 @@ function drawCorruption(graphics: Graphics, layout: Layout, state: EngineState, 
         y + layout.cell - inset,
       ];
       graphics.poly(poly).fill({ color: 0x2a0a14, alpha: fillAlpha }).stroke({
-        color: frontierHot ? 0xff6b86 : 0xff4d6d,
+        color: phase === "probe" ? 0xff4d6d : 0xff6b86,
         width: phase === "collapse" ? 1.7 : 1.35,
         alpha: strokeAlpha,
       });
+    } else {
+      const shrinkX = die * pressure.x * layout.cell * 0.35;
+      const shrinkY = die * pressure.y * layout.cell * 0.35;
       graphics
-        .moveTo(x + layout.cell * 0.1, y + layout.cell * (0.2 + (hash % 3) * 0.08))
-        .lineTo(x + layout.cell * 0.45, y + layout.cell * 0.55)
-        .lineTo(x + layout.cell * 0.9, y + layout.cell * (0.25 + (hash % 2) * 0.15))
-        .stroke({ color: 0xff6b86, width: phase === "collapse" ? 1.4 : 1.1, alpha: frontierHot ? 0.88 : 0.7 });
-      if (hash % 3 === 0) {
-        graphics
-          .poly([
-            x + layout.cell * 0.15,
-            y - layout.cell * 0.08,
-            x + layout.cell * 0.35,
-            y + layout.cell * 0.12,
-            x + layout.cell * 0.05,
-            y + layout.cell * 0.18,
-          ])
-          .fill({ color: 0xff4d6d, alpha: phase === "collapse" ? 0.72 : 0.55 });
-      }
-      continue;
+        .rect(
+          x + inset + shrinkX,
+          y + inset + shrinkY,
+          layout.cell - inset * 2,
+          layout.cell - inset * 2,
+        )
+        .fill({ color: 0x2a0a14, alpha: fillAlpha })
+        .stroke({ color: 0xff4d6d, width: 1, alpha: strokeAlpha });
     }
 
+    if (!reducedMotion && phase !== "probe" && die === 0 && grow > 0.4 && coreDistance(point) > 4) {
+      const cx = pxX(layout, point.x);
+      const cy = pxY(layout, point.y);
+      graphics
+        .moveTo(cx, cy)
+        .lineTo(cx + pressure.x * layout.cell * 0.55 * aggression, cy + pressure.y * layout.cell * 0.55 * aggression)
+        .stroke({ color: 0xff6b86, width: 1.1, alpha: 0.35 * life * aggression });
+    }
+  }
+
+  // Broken rim veins — deterministic neighbor links.
+  for (const key of livingKeys) {
+    const visual = visuals.get(key);
+    if (!visual || visual.dyingAtTick !== null) continue;
+    const neighbor = nearestRimNeighbor(key, state.corruption, GRID_COLUMNS, GRID_ROWS);
+    if (!neighbor || neighbor < key) continue;
+    const a = parseCellKey(key);
+    const b = parseCellKey(neighbor);
+    const hash = veinHash(key, neighbor);
+    if ((hash & 3) === 0) continue;
+    const midBreak = ((hash >>> 4) & 63) / 63;
+    const ax = pxX(layout, a.x);
+    const ay = pxY(layout, a.y);
+    const bx = pxX(layout, b.x);
+    const by = pxY(layout, b.y);
+    const mx = ax + (bx - ax) * midBreak;
+    const my = ay + (by - ay) * midBreak;
+    const offset = ((hash >>> 10) & 7) - 3;
     graphics
-      .rect(x + inset, y + inset, layout.cell - inset * 2, layout.cell - inset * 2)
-      .fill({ color: 0x2a0a14, alpha: fillAlpha })
-      .stroke({
-        color: frontierHot ? 0xff6b86 : 0xff4d6d,
-        width: nearRim ? (phase === "surge" ? 1.35 : 1.2) : 1,
-        alpha: strokeAlpha,
-      });
-    const fracture = (hash & 3) / 4;
-    graphics
-      .moveTo(x + layout.cell * 0.18, y + layout.cell * (0.25 + fracture * 0.25))
-      .lineTo(x + layout.cell * 0.52, y + layout.cell * 0.5)
-      .lineTo(x + layout.cell * 0.82, y + layout.cell * (0.36 + fracture * 0.2))
+      .moveTo(ax, ay)
+      .lineTo(mx + offset * 0.4, my - offset * 0.4)
+      .moveTo(mx + offset, my + offset)
+      .lineTo(bx, by)
       .stroke({
         color: 0xff6b86,
-        width: phase === "collapse" ? 1.15 : 0.9,
-        alpha: nearRim ? (phase === "probe" ? 0.55 : 0.75) : 0.35,
+        width: phase === "collapse" ? 1.35 : 1,
+        alpha: phase === "probe" ? 0.28 : 0.48,
       });
   }
 }
 
 function drawTrail(graphics: Graphics, layout: Layout, light: LightState) {
   if (light.trail.length < 2) return;
-  const width = Math.max(1.8, layout.cell * 0.12);
+  const width = Math.max(1.8, layout.cell * (light.role === "scout" ? 0.09 : light.role === "guardian" ? 0.14 : 0.12));
   for (let index = 1; index < light.trail.length; index += 1) {
     const from = light.trail[index - 1];
     const to = light.trail[index];
     const t = index / light.trail.length;
     const alpha = 0.1 + t * 0.78;
+    if (light.role === "scout") {
+      const gap = index % 2 === 0;
+      if (gap) continue;
+    }
     graphics
       .moveTo(pxX(layout, from.x), pxY(layout, from.y))
       .lineTo(pxX(layout, to.x), pxY(layout, to.y))
-      .stroke({ color: light.color, width: width * (0.55 + t * 0.55), alpha });
-    const bent = from.x !== to.x && from.y !== to.y;
-    const corner =
-      index > 1 &&
-      (light.trail[index - 2].x === from.x) !== (from.x === to.x);
-    if (bent || corner) {
-      graphics.circle(pxX(layout, to.x), pxY(layout, to.y), width * (corner ? 0.85 : 0.55)).fill({
-        color: light.color,
-        alpha: alpha * (corner ? 0.95 : 0.85),
+      .stroke({
+        color: light.role === "mender" ? 0xffd166 : light.color,
+        width: width * (0.55 + t * 0.55),
+        alpha: light.role === "mender" ? alpha * 0.85 : alpha,
       });
-    }
   }
-  const tip = light.trail[light.trail.length - 1];
-  graphics.circle(pxX(layout, tip.x), pxY(layout, tip.y), width * 0.7).fill({
-    color: light.color,
-    alpha: 0.55,
-  });
+  if (light.role === "mender" && light.trail.length >= 2) {
+    const tip = light.trail[light.trail.length - 1];
+    const toward = pressureTowardCore(tip);
+    graphics
+      .moveTo(pxX(layout, tip.x), pxY(layout, tip.y))
+      .lineTo(
+        pxX(layout, tip.x) + toward.x * layout.cell * 0.7,
+        pxY(layout, tip.y) + toward.y * layout.cell * 0.7,
+      )
+      .stroke({ color: 0xffd166, width: 1.1, alpha: 0.45 });
+  }
 }
 
 function drawLight(
@@ -268,19 +323,22 @@ function drawLight(
   interpolation: number,
   possessedLightId: string | null,
   claimProgress: number,
+  state: EngineState,
 ) {
-  const x = light.previousX + (light.x - light.previousX) * interpolation;
-  const y = light.previousY + (light.y - light.previousY) * interpolation;
+  const eased = light.role === "guardian" ? Math.min(1, interpolation * 0.85 + 0.15) : interpolation;
+  const x = light.previousX + (light.x - light.previousX) * eased;
+  const y = light.previousY + (light.y - light.previousY) * eased;
   const centerX = pxX(layout, x);
   const centerY = pxY(layout, y);
-  const radius = Math.max(4.5, layout.cell * 0.28);
+  const radius = Math.max(4.5, layout.cell * (light.role === "guardian" ? 0.32 : 0.28));
   const possessed = light.id === possessedLightId;
   const active = light.mode === "intercept" || possessed;
+
   graphics.circle(centerX, centerY, radius * (possessed ? 3.9 : active ? 2.8 : 2.4)).fill({
     color: light.color,
     alpha: possessed ? 0.2 : active ? 0.1 : 0.07,
   });
-  graphics.circle(centerX, centerY, radius * 1.35).fill({ color: light.color, alpha: 0.08 });
+
   if (possessed) {
     const claimBoost = claimProgress > 0 ? (1 - claimProgress) * 0.55 : 0;
     graphics.circle(centerX, centerY, radius * (1.85 + claimBoost * 1.4)).stroke({
@@ -288,51 +346,84 @@ function drawLight(
       width: 1.6 + claimBoost * 2,
       alpha: 0.82 + claimBoost,
     });
-    if (claimProgress > 0 && claimProgress < 1) {
-      graphics.circle(centerX, centerY, radius * (2.4 + (1 - claimProgress) * 2.2)).stroke({
-        color: 0xffffff,
-        width: 1.2,
-        alpha: (1 - claimProgress) * 0.65,
-      });
+  }
+
+  if (light.role === "guardian") {
+    const lattice = layout.cell * (light.mode === "formation" || manhattan(light, CORE_POINT) <= 6 ? 2.2 : 1.4);
+    graphics.circle(centerX, centerY, lattice).stroke({ color: 0xa78bfa, width: 1, alpha: 0.28 });
+    graphics.circle(centerX, centerY, lattice * 0.72).stroke({ color: 0xf4f7ff, width: 0.8, alpha: 0.18 });
+    if (active) {
+      graphics.arc(centerX, centerY, radius * 2.1, -0.9, 0.9).stroke({ color: 0xf4f7ff, width: 1.4, alpha: 0.55 });
     }
-  }
-  if (light.shape === "circle") {
-    graphics.circle(centerX, centerY, radius).stroke({ color: light.color, width: 2.2, alpha: 1 });
-    graphics.circle(centerX, centerY, radius * 0.38).fill({ color: light.color, alpha: 0.95 });
-    return;
-  }
-  if (light.shape === "triangle") {
-    const poly = [
-      centerX,
-      centerY - radius,
-      centerX + radius,
-      centerY + radius * 0.75,
-      centerX - radius,
-      centerY + radius * 0.75,
+    const outer = [
+      centerX, centerY - radius * 1.15,
+      centerX + radius * 1.15, centerY,
+      centerX, centerY + radius * 1.15,
+      centerX - radius * 1.15, centerY,
     ];
-    graphics.poly(poly).fill({ color: light.color, alpha: 0.12 }).stroke({ color: light.color, width: 2.2, alpha: 1 });
+    const inner = [
+      centerX, centerY - radius * 0.55,
+      centerX + radius * 0.55, centerY,
+      centerX, centerY + radius * 0.55,
+      centerX - radius * 0.55, centerY,
+    ];
+    graphics.poly(outer).fill({ color: 0xa78bfa, alpha: 0.08 }).stroke({ color: light.color, width: 2.2, alpha: 1 });
+    graphics.poly(inner).stroke({ color: 0xf4f7ff, width: 1.2, alpha: 0.75 });
     return;
   }
-  const diamond = [
-    centerX,
-    centerY - radius,
-    centerX + radius,
-    centerY,
-    centerX,
-    centerY + radius,
-    centerX - radius,
-    centerY,
-  ];
-  graphics.poly(diamond).fill({ color: light.color, alpha: 0.12 }).stroke({ color: light.color, width: 2.2, alpha: 1 });
+
+  if (light.role === "scout") {
+    const dx = light.target.x - light.x;
+    const dy = light.target.y - light.y;
+    const angle = Math.atan2(dy, dx || 0.001);
+    const tipX = centerX + Math.cos(angle) * radius;
+    const tipY = centerY + Math.sin(angle) * radius;
+    const leftX = centerX + Math.cos(angle + 2.4) * radius;
+    const leftY = centerY + Math.sin(angle + 2.4) * radius;
+    const rightX = centerX + Math.cos(angle - 2.4) * radius;
+    const rightY = centerY + Math.sin(angle - 2.4) * radius;
+    if (light.mode === "intercept") {
+      graphics
+        .moveTo(centerX, centerY)
+        .lineTo(pxX(layout, light.target.x), pxY(layout, light.target.y))
+        .stroke({ color: 0x40e8ff, width: 1.1, alpha: 0.55 });
+    }
+    if (light.x !== light.previousX || light.y !== light.previousY) {
+      graphics
+        .moveTo(centerX - Math.cos(angle) * radius * 1.8, centerY - Math.sin(angle) * radius * 1.8)
+        .lineTo(centerX, centerY)
+        .stroke({ color: 0x40e8ff, width: 1.6, alpha: 0.5 });
+    }
+    graphics.poly([tipX, tipY, leftX, leftY, rightX, rightY]).fill({ color: light.color, alpha: 0.14 }).stroke({
+      color: light.color,
+      width: 2.2,
+      alpha: 1,
+    });
+    return;
+  }
+
+  // Mender
+  graphics.circle(centerX, centerY, radius).stroke({ color: light.color, width: 2.2, alpha: 1 });
+  graphics.circle(centerX, centerY, radius * 0.55).stroke({ color: 0xffd166, width: 1.2, alpha: 0.7 });
+  graphics.circle(centerX, centerY, radius * 0.28).fill({ color: light.color, alpha: 0.95 });
+  for (const other of state.lights) {
+    if (other.id === light.id) continue;
+    const dist = manhattan(light, other);
+    if (dist > 5) continue;
+    graphics
+      .moveTo(centerX, centerY)
+      .lineTo(pxX(layout, other.x), pxY(layout, other.y))
+      .stroke({ color: 0xffd166, width: 1, alpha: 0.28 });
+  }
 }
 
-function drawCore(graphics: Graphics, layout: Layout, health: number, tick: number, phase: RoundPhase) {
+function drawCore(graphics: Graphics, layout: Layout, health: number, tick: number, phase: RoundPhase, frozen: boolean) {
   const x = pxX(layout, CORE_X);
   const y = pxY(layout, CORE_Y);
   const tension = 1 - health / 100;
   const phaseTension = phase === "collapse" ? 0.18 : phase === "surge" ? 0.08 : 0;
-  const motionRate = phase === "surge" ? 0.2 : phase === "collapse" ? 0.26 : 0.14;
-  const pulse = 1 + Math.sin(tick * motionRate) * (0.06 - tension * 0.03 + phaseTension * 0.04);
+  const motionRate = frozen ? 0 : phase === "surge" ? 0.2 : phase === "collapse" ? 0.26 : 0.14;
+  const pulse = frozen ? 1 : 1 + Math.sin(tick * motionRate) * (0.06 - tension * 0.03 + phaseTension * 0.04);
   const glow = layout.cell * (2.4 - tension * 0.9 - phaseTension * 0.35) * pulse;
   const mark = layout.cell * (0.42 - tension * 0.06) * pulse;
   const coreTint = tension > 0.55 || phase === "collapse" ? 0xff4d6d : tension > 0.3 ? 0xffd166 : 0xf4f7ff;
@@ -352,16 +443,7 @@ function drawCore(graphics: Graphics, layout: Layout, health: number, tick: numb
     .poly([x, y - mark, x + mark, y, x, y + mark, x - mark, y])
     .stroke({ color: coreTint, width: 1.6, alpha: 0.9 });
   graphics
-    .poly([
-      x,
-      y - mark * 0.42,
-      x + mark * 0.42,
-      y,
-      x,
-      y + mark * 0.42,
-      x - mark * 0.42,
-      y,
-    ])
+    .poly([x, y - mark * 0.42, x + mark * 0.42, y, x, y + mark * 0.42, x - mark * 0.42, y])
     .stroke({ color: signalTint, width: 1, alpha: 0.75 });
   graphics.circle(x, y, Math.max(1.8, layout.cell * 0.11)).fill({
     color: tension > 0.55 || phase === "collapse" ? 0xffb0bc : 0xffffff,
@@ -403,6 +485,13 @@ function drawRepairs(graphics: Graphics, layout: Layout, state: EngineState) {
         .lineTo(x + offset + 2, y + layout.cell - 2)
         .stroke({ color: 0xffd166, width: 1.1, alpha: alpha * 0.85 });
     }
+    const cx = pxX(layout, repair.x);
+    const cy = pxY(layout, repair.y);
+    const toward = pressureTowardCore({ x: repair.x, y: repair.y });
+    graphics
+      .moveTo(cx, cy)
+      .lineTo(cx + toward.x * layout.cell * 0.9, cy + toward.y * layout.cell * 0.9)
+      .stroke({ color: 0xffd166, width: 1, alpha: alpha * 0.55 });
   }
 }
 
@@ -428,10 +517,16 @@ function drawImpacts(graphics: Graphics, layout: Layout, state: EngineState) {
     if (age < 0 || age > 10) continue;
     const progress = age / 10;
     const alpha = 1 - progress;
-    const color = impact.kind === "damage" ? 0xff4d6d : impact.kind === "pulse" ? 0xf4f7ff : 0x40e8ff;
+    const color = impact.kind === "damage"
+      ? 0xff4d6d
+      : impact.kind === "pulse"
+        ? 0xf4f7ff
+        : impact.kind === "manual"
+          ? 0xffd166
+          : 0x40e8ff;
     const x = pxX(layout, impact.x);
     const y = pxY(layout, impact.y);
-    const radius = layout.cell * (0.32 + progress * (impact.kind === "damage" ? 1.9 : 1.7));
+    const radius = layout.cell * (0.32 + progress * (impact.kind === "damage" ? 1.9 : impact.kind === "intercept" ? 1.35 : 1.7));
     const cellX = layout.originX + impact.x * layout.cell;
     const cellY = layout.originY + impact.y * layout.cell;
     if (progress < 0.45) {
@@ -440,22 +535,14 @@ function drawImpacts(graphics: Graphics, layout: Layout, state: EngineState) {
         alpha: alpha * (impact.kind === "damage" ? 0.22 : 0.14),
       });
     }
+    if (impact.kind === "intercept") {
+      // Scout-sharp collapse diamond.
+      graphics
+        .poly([x, y - radius, x + radius * 0.7, y, x, y + radius, x - radius * 0.7, y])
+        .stroke({ color: 0x40e8ff, width: 1.6, alpha });
+    }
     graphics.circle(x, y, radius).fill({ color, alpha: alpha * 0.12 });
     graphics.circle(x, y, radius).stroke({ color, width: impact.kind === "damage" ? 2.8 : 2, alpha });
-    graphics
-      .moveTo(x - radius, y)
-      .lineTo(x + radius, y)
-      .moveTo(x, y - radius)
-      .lineTo(x, y + radius)
-      .stroke({ color, width: 1.1, alpha: alpha * 0.85 });
-    if (impact.kind !== "damage") {
-      graphics
-        .moveTo(x - radius * 0.65, y - radius * 0.65)
-        .lineTo(x + radius * 0.65, y + radius * 0.65)
-        .moveTo(x + radius * 0.65, y - radius * 0.65)
-        .lineTo(x - radius * 0.65, y + radius * 0.65)
-        .stroke({ color, width: 0.8, alpha: alpha * 0.45 });
-    }
   }
 }
 
@@ -468,7 +555,6 @@ function drawImpactSparks(
   for (const impact of state.impacts) {
     const age = state.tick - impact.bornAtTick;
     if (age < 0 || age > 10) continue;
-
     const progress = age / 10;
     const alpha = Math.max(0, 1 - progress);
     const x = pxX(layout, impact.x);
@@ -477,10 +563,11 @@ function drawImpactSparks(
       ? 0xff4d6d
       : impact.kind === "pulse"
         ? 0xf4f7ff
-        : 0x40e8ff;
+        : impact.kind === "manual"
+          ? 0xffd166
+          : 0x40e8ff;
     const fullCount = impact.kind === "damage" ? 10 : 7;
     const count = reducedMotion ? Math.min(4, fullCount) : fullCount;
-
     for (let index = 0; index < count; index += 1) {
       const hash = hashText([
         state.seed,
@@ -499,12 +586,9 @@ function drawImpactSparks(
           ? 0.38 + lengthNoise * 0.2
           : 0.32 + progress * (0.8 + lengthNoise * 0.55)
       );
-      const cos = Math.cos(angle);
-      const sin = Math.sin(angle);
-
       graphics
-        .moveTo(x + cos * inner, y + sin * inner)
-        .lineTo(x + cos * outer, y + sin * outer)
+        .moveTo(x + Math.cos(angle) * inner, y + Math.sin(angle) * inner)
+        .lineTo(x + Math.cos(angle) * outer, y + Math.sin(angle) * outer)
         .stroke({
           color,
           width: impact.kind === "damage" ? 1.5 : 1,
@@ -526,57 +610,22 @@ function drawWarningShimmer(graphics: Graphics, layout: Layout, state: EngineSta
   });
 }
 
-function renderAtmosphere(graphics: Graphics, width: number, height: number, phase: RoundPhase) {
-  graphics.clear();
-  drawAtmosphere(graphics, layoutFor(width, height), phase);
-}
-
-function renderWorld(
-  graphics: Graphics,
-  state: EngineState,
-  width: number,
-  height: number,
-  allowWarp: boolean,
-) {
-  graphics.clear();
-  const layout = layoutFor(width, height);
-  const phase = phaseForTick(state.tick);
-  const warp = pulseWarpFor(state, layout, allowWarp);
-  drawGrid(graphics, layout, warp);
-  drawTacticalField(graphics, layout, state);
-  drawCorruption(graphics, layout, state, phase);
-  state.lights.forEach((light) => drawTrail(graphics, layout, light));
-  drawRepairs(graphics, layout, state);
-}
-
-function renderActors(
-  graphics: Graphics,
-  state: EngineState,
-  width: number,
-  height: number,
-  interpolation: number,
-  claimProgress: number,
-  reducedMotion: boolean,
-) {
-  graphics.clear();
-  const layout = layoutFor(width, height);
-  const phase = phaseForTick(state.tick);
-  drawCore(graphics, layout, state.health, state.tick, phase);
-  state.lights.forEach((light) =>
-    drawLight(graphics, layout, light, interpolation, state.possessedLightId, claimProgress),
-  );
-  drawImpacts(graphics, layout, state);
-  drawImpactSparks(graphics, layout, state, reducedMotion);
-  drawPulse(graphics, layout, state);
-  drawWarningShimmer(graphics, layout, state);
-}
-
-export function PixiArena({ state }: PixiArenaProps) {
+export function PixiArena({ state, frozen = false }: PixiArenaProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const stateRef = useRef(state);
+  const frozenRef = useRef(frozen);
   const updatedAtRef = useRef(performance.now());
   const possessedRef = useRef<string | null>(state.possessedLightId);
   const claimAtRef = useRef(0);
+  const visualsRef = useRef(new Map<string, CellVisual>());
+  const phaseRef = useRef(phaseForTick(state.tick));
+  const healthRef = useRef(state.health);
+  const pulseUsedRef = useRef(state.pulse.usedAtTick);
+  const impulseRef = useRef<CameraImpulse | null>(null);
+
+  useEffect(() => {
+    frozenRef.current = frozen;
+  }, [frozen]);
 
   useEffect(() => {
     const moved = state.lights.some((light, index) => {
@@ -587,11 +636,43 @@ export function PixiArena({ state }: PixiArenaProps) {
       possessedRef.current = state.possessedLightId;
       if (state.possessedLightId !== null) claimAtRef.current = performance.now();
     }
+    const nextPhase = phaseForTick(state.tick);
+    if (nextPhase !== phaseRef.current) {
+      phaseRef.current = nextPhase;
+      if (nextPhase !== "probe") {
+        impulseRef.current = {
+          kind: "phase",
+          startedAtMs: performance.now(),
+          dirX: nextPhase === "surge" ? 0.4 : -0.2,
+          dirY: nextPhase === "collapse" ? 0.55 : -0.25,
+        };
+      }
+    }
+    if (state.health < healthRef.current) {
+      impulseRef.current = {
+        kind: "damage",
+        startedAtMs: performance.now(),
+        dirX: 0.15,
+        dirY: 0.9,
+      };
+    }
+    healthRef.current = state.health;
+    if (state.pulse.usedAtTick !== null && state.pulse.usedAtTick !== pulseUsedRef.current) {
+      impulseRef.current = {
+        kind: "pulse",
+        startedAtMs: performance.now(),
+        dirX: 0,
+        dirY: 0,
+      };
+    }
+    pulseUsedRef.current = state.pulse.usedAtTick;
+    syncCorruptionVisuals(visualsRef.current, state.corruption, state.tick);
     stateRef.current = state;
     if (moved) updatedAtRef.current = performance.now();
   }, [state]);
 
   useEffect(() => {
+    syncCorruptionVisuals(visualsRef.current, state.corruption, state.tick);
     const host = hostRef.current;
     if (!host) return;
     const mountHost = host;
@@ -626,54 +707,84 @@ export function PixiArena({ state }: PixiArenaProps) {
       let renderedWidth = -1;
       let renderedHeight = -1;
       let lastWarpActive = false;
+      let lastFrozen = frozenRef.current;
+
       nextApp.ticker.add(() => {
         const width = nextApp.screen.width;
         const height = nextApp.screen.height;
         const current = stateRef.current;
+        const isFrozen = frozenRef.current;
         const phase = phaseForTick(current.tick);
-        const allowWarp = !reducedMotion.matches;
+        const allowWarp = !reducedMotion.matches && !isFrozen;
         const warpActive = allowWarp && current.pulse.usedAtTick !== null
           && current.tick - current.pulse.usedAtTick >= 0
           && current.tick - current.pulse.usedAtTick <= 12;
         const resized = width !== renderedWidth || height !== renderedHeight;
-        if (resized) {
-          renderAtmosphere(atmosphereLayer, width, height, phase);
+        const layout = layoutFor(width, height);
+
+        if (resized || renderedTick !== current.tick || lastFrozen !== isFrozen) {
+          atmosphereLayer.clear();
+          drawAtmosphere(atmosphereLayer, layout, phase, isFrozen);
           renderedWidth = width;
           renderedHeight = height;
-        } else if (renderedTick !== current.tick) {
-          renderAtmosphere(atmosphereLayer, width, height, phase);
+          lastFrozen = isFrozen;
         }
-        if (resized || renderedTick !== current.tick || warpActive || lastWarpActive) {
-          renderWorld(worldLayer, current, width, height, allowWarp);
+        if (resized || renderedTick !== current.tick || warpActive || lastWarpActive || lastFrozen !== isFrozen) {
+          worldLayer.clear();
+          const warp = pulseWarpFor(current, layout, allowWarp);
+          drawGrid(worldLayer, layout, warp);
+          drawTacticalField(worldLayer, layout, current);
+          drawCorruption(
+            worldLayer,
+            layout,
+            current,
+            phase,
+            visualsRef.current,
+            reducedMotion.matches || isFrozen,
+          );
+          current.lights.forEach((light) => drawTrail(worldLayer, layout, light));
+          drawRepairs(worldLayer, layout, current);
           renderedTick = current.tick;
           lastWarpActive = warpActive;
         }
-        if (!reducedMotion.matches && phase !== "probe") {
-          const amplitude = phase === "collapse" ? 1.4 : 0.7;
-          const rate = phase === "collapse" ? 0.085 : 0.055;
-          scene.x = Math.sin(current.tick * rate) * amplitude;
-          scene.y = Math.cos(current.tick * rate * 0.85) * amplitude * 0.65;
-        } else {
+
+        if (reducedMotion.matches || isFrozen) {
           scene.x = 0;
           scene.y = 0;
+          scene.scale.set(1);
+        } else {
+          const cam = cameraOffset(impulseRef.current, performance.now());
+          scene.x = cam.x;
+          scene.y = cam.y;
+          scene.scale.set(cam.scale);
         }
-        const interpolation = reducedMotion.matches
+
+        const interpolation = reducedMotion.matches || isFrozen
           ? 1
           : Math.min(1, (performance.now() - updatedAtRef.current) / (phase === "surge" ? 120 : 150));
         const claimElapsed = performance.now() - claimAtRef.current;
         const claimProgress =
-          reducedMotion.matches || claimAtRef.current === 0 || claimElapsed >= POSSESS_CLAIM_MS
+          reducedMotion.matches || isFrozen || claimAtRef.current === 0 || claimElapsed >= POSSESS_CLAIM_MS
             ? 0
             : claimElapsed / POSSESS_CLAIM_MS;
-        renderActors(
-          actorLayer,
-          current,
-          width,
-          height,
-          interpolation,
-          claimProgress,
-          reducedMotion.matches,
+
+        actorLayer.clear();
+        drawCore(actorLayer, layout, current.health, current.tick, phase, isFrozen);
+        current.lights.forEach((light) =>
+          drawLight(
+            actorLayer,
+            layout,
+            light,
+            interpolation,
+            current.possessedLightId,
+            claimProgress,
+            current,
+          ),
         );
+        drawImpacts(actorLayer, layout, current);
+        drawImpactSparks(actorLayer, layout, current, reducedMotion.matches || isFrozen);
+        drawPulse(actorLayer, layout, current);
+        drawWarningShimmer(actorLayer, layout, current);
       });
     }
 
@@ -682,7 +793,7 @@ export function PixiArena({ state }: PixiArenaProps) {
       cancelled = true;
       app?.destroy(true);
     };
-  }, []);
+  }, [state.seed]);
 
-  return <div className="pixi-arena" ref={hostRef} />;
+  return <div className={`pixi-arena${frozen ? " pixi-arena--frozen" : ""}`} ref={hostRef} />;
 }

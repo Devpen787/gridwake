@@ -36,23 +36,30 @@ Reference: `design/reference/gameplay-north-star.png`
 
 - Logical state: 10 Hz.
 - Visual interpolation: requestAnimationFrame.
-- Movement: crisp cell-to-cell easing, 120–180 ms.
+- Movement: crisp cell-to-cell easing, 120–180 ms (Guardian slightly heavier).
+- Corruption crust grow-in: 0–6 ticks; cleared cells collapse inward 0–8 ticks
+  (renderer-owned birth/death maps; deterministic hashes only).
 - Pulse: 620 ms expansion (~12 ticks at 10 Hz) with short-lived grid displacement
   (peak warp ~180 ms into the ring; decays with the pulse alpha).
 - Possess claim: 280 ms white ring flash on takeover (render-only).
-- Arena kick: 160 ms CSS translate shake on damage or pulse fire.
-- Result grade enter: 420 ms fade/slide; score bar fills in 520 ms.
+- Camera: impulse-only on the Pixi scene (phase focus push, damage kick, Pulse
+  scale) — no constant drift. CSS arena kick remains a secondary cue.
+- Result grade enter: 420 ms fade/slide; score bar fills in 520 ms; final arena
+  frozen darkened behind the receipt.
 - Awakening: 900–1400 ms; reduced-motion collapses all of the above to crossfades /
-  static layout (no shake, no grade slide, pulse warp amplitude 0).
+  static layout (no shake, no grade slide, pulse warp amplitude 0, no camera).
 
 ## Chrome
 
 - Top left: segmented core health (10 segments) with band colour shift.
 - Top center: timer.
 - Bottom center: pulse and current intention (possess cue replaces intention label).
-- Result: grade-first performance card; seed/replay/status in a quiet footer.
+- Program: sentence + live StrategyPreview mini-grid as one composed surface.
+- Result: grade-first performance card over the frozen battlefield; seed/replay in a quiet footer.
+- Coarse pointer: desktop possession roster hidden; touch selector + hold-to-repeat pad.
 - Prototype/local truth remains visible but visually subordinate.
 - No leaderboard, inventory, portrait, minimap, fake console, or filler metrics.
+- Routine intercept/repair feedback is world-local; toast reserved for phase, damage, Pulse, warning.
 
 ## Allowed first-viewport copy
 

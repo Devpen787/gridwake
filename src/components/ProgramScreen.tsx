@@ -6,6 +6,7 @@ import {
 } from "../game/strategy";
 import type { CompiledStrategy, StrategyPolicy } from "../game/types";
 import { CoreMark } from "./CoreMark";
+import { StrategyPreview } from "./StrategyPreview";
 
 type ProgramScreenProps = Readonly<{
   initialSource: string;
@@ -58,24 +59,27 @@ export function ProgramScreen({ initialSource, onBack, onConfirm }: ProgramScree
           <p>One sentence. The Grid handles the rest.</p>
         </div>
 
-        <div className="strategy-field">
-          <label htmlFor="strategy">YOUR INSTINCT</label>
-          <textarea
-            id="strategy"
-            value={source}
-            maxLength={280}
-            rows={3}
-            spellCheck="true"
-            autoFocus={shouldAutoFocus}
-            onChange={(event) => setSource(event.target.value)}
-            placeholder="Circle the light. Send two units after anything that gets close, then return without chasing."
-          />
-          <div className="strategy-field__meta">
-            <span>{usingDefault ? "DEFAULT INSTINCT READY" : `${remaining.toString().padStart(3, "0")} REMAINING`}</span>
-            {compilation.strategy ? (
-              <span className="strategy-summary" aria-live="polite">{summaryLine(compilation.strategy.policy)}</span>
-            ) : null}
+        <div className="strategy-compose">
+          <div className="strategy-field">
+            <label htmlFor="strategy">YOUR INSTINCT</label>
+            <textarea
+              id="strategy"
+              value={source}
+              maxLength={280}
+              rows={3}
+              spellCheck="true"
+              autoFocus={shouldAutoFocus}
+              onChange={(event) => setSource(event.target.value)}
+              placeholder="Circle the light. Send two units after anything that gets close, then return without chasing."
+            />
+            <div className="strategy-field__meta">
+              <span>{usingDefault ? "DEFAULT INSTINCT READY" : `${remaining.toString().padStart(3, "0")} REMAINING`}</span>
+              {compilation.strategy ? (
+                <span className="strategy-summary" aria-live="polite">{summaryLine(compilation.strategy.policy)}</span>
+              ) : null}
+            </div>
           </div>
+          <StrategyPreview strategy={compilation.strategy} />
         </div>
 
         <div className="strategy-examples" aria-label="Tactic starters">

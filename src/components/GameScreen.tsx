@@ -134,17 +134,39 @@ export function GameScreen({
     if (lastSoundEventRef.current === key) return;
     lastSoundEventRef.current = key;
 
+    // Routine intercept/repair stay world-local; keep audio but no toast.
+    if (event.kind === "intercept" || event.kind === "repair") {
+      gameAudio.play(event.kind === "repair" ? "repair" : "intercept");
+      return;
+    }
     const sound = event.kind === "damage"
       ? "damage"
-      : event.kind === "repair"
-        ? "repair"
-        : event.kind === "intercept"
-          ? "intercept"
-          : event.kind === "pulse"
-            ? "pulse"
-            : "warning";
+      : event.kind === "pulse"
+        ? "pulse"
+        : event.kind === "phase"
+          ? "warning"
+          : "warning";
     gameAudio.play(sound);
+    if (event.kind === "pulse") gameAudio.duckAmbience();
   }, [state.lastEvent]);
+
+  useEffect(() => {
+    void gameAudio.unlock().then((ready) => {
+      if (ready) gameAudio.startAmbience();
+    });
+    return () => {
+      gameAudio.stopAmbience();
+    };
+  }, []);
+
+  useEffect(() => {
+    gameAudio.updateAmbience(threatLevel(state.corruption), phaseForTick(state.tick));
+  }, [state.corruption, state.tick]);
+
+  useEffect(() => {
+    if (!state.ended) return;
+    gameAudio.updateAmbience(threatLevel(state.corruption), "result");
+  }, [state.corruption, state.ended]);
 
   useEffect(() => {
     if (
@@ -305,6 +327,12 @@ export function GameScreen({
   const phase = phaseForTick(state.tick);
   const overrideSpent = state.overrideTicksRemaining <= 0;
   const overrideRatio = state.overrideTicksRemaining / OVERRIDE_MAX_TICKS;
+  const toastEvent = useMemo(() => {
+    const event = state.lastEvent;
+    if (!event) return null;
+    if (event.kind === "intercept" || event.kind === "repair") return null;
+    return event;
+  }, [state.lastEvent]);
 
   return (
     <section
@@ -325,7 +353,7 @@ export function GameScreen({
         <PixiArena state={state} />
         <div className="phosphor-overlay" aria-hidden="true" />
       </div>
-      <EventToast event={state.lastEvent} />
+      <EventToast event={toastEvent} />
       <EventToast event={phaseToast} durationMs={PHASE_TOAST_MS} />
       <ControlsHint
         visible={showControlsHint}

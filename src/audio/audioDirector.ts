@@ -41,9 +41,16 @@ type ToneSpec = Readonly<{
   detune?: number;
 }>;
 
+type AmbiencePhase = "probe" | "surge" | "collapse" | "result";
+
 class AudioDirector {
   private context: AudioContext | null = null;
   private master: GainNode | null = null;
+  private ambienceGain: GainNode | null = null;
+  private ambienceFilter: BiquadFilterNode | null = null;
+  private ambienceOsc: OscillatorNode | null = null;
+  private ambienceNoise: AudioBufferSourceNode | null = null;
+  private ambienceActive = false;
   private muted = readMutedPreference();
   private readonly lastPlayedAt = new Map<GameSound, number>();
 
@@ -58,6 +65,7 @@ class AudioDirector {
     const now = this.context.currentTime;
     this.master.gain.cancelScheduledValues(now);
     this.master.gain.setTargetAtTime(muted ? SILENCE : 0.72, now, 0.015);
+    if (muted) this.stopAmbience();
   }
 
   toggleMuted(): boolean {
@@ -166,6 +174,125 @@ class AudioDirector {
         break;
       }
     }
+  }
+
+  startAmbience(): void {
+    if (this.muted || this.ambienceActive) return;
+    const context = this.ensureGraph();
+    if (!context || !this.master || context.state !== "running") return;
+
+    const filter = context.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.frequency.value = 220;
+    filter.Q.value = 0.7;
+
+    const gain = context.createGain();
+    gain.gain.value = SILENCE;
+
+    const osc = context.createOscillator();
+    osc.type = "sine";
+    osc.frequency.value = 48;
+    osc.connect(filter);
+
+    const noise = context.createBufferSource();
+    noise.buffer = this.noiseBuffer(context);
+    noise.loop = true;
+    const noiseGain = context.createGain();
+    noiseGain.gain.value = 0.018;
+    noise.connect(noiseGain);
+    noiseGain.connect(filter);
+
+    filter.connect(gain);
+    gain.connect(this.master);
+    osc.start();
+    noise.start();
+    gain.gain.setTargetAtTime(0.035, context.currentTime, 0.8);
+
+    this.ambienceFilter = filter;
+    this.ambienceGain = gain;
+    this.ambienceOsc = osc;
+    this.ambienceNoise = noise;
+    this.ambienceActive = true;
+  }
+
+  updateAmbience(threat: number, phase: AmbiencePhase): void {
+    if (!this.ambienceActive || !this.context || !this.ambienceFilter || !this.ambienceGain || !this.ambienceOsc) {
+      return;
+    }
+    if (this.muted) return;
+    const now = this.context.currentTime;
+    const threatNorm = Math.min(1, Math.max(0, threat / 100));
+    const baseFreq = phase === "collapse" ? 38 : phase === "surge" ? 52 : phase === "result" ? 44 : 48;
+    const cutoff = phase === "collapse"
+      ? 160 + threatNorm * 90
+      : phase === "surge"
+        ? 240 + threatNorm * 140
+        : 200 + threatNorm * 80;
+    const level = phase === "result"
+      ? 0.02
+      : 0.028 + threatNorm * 0.025 + (phase === "collapse" ? 0.012 : 0);
+    this.ambienceOsc.frequency.setTargetAtTime(baseFreq, now, 0.4);
+    this.ambienceFilter.frequency.setTargetAtTime(cutoff, now, 0.35);
+    this.ambienceGain.gain.setTargetAtTime(level, now, 0.45);
+  }
+
+  duckAmbience(durationSec = 0.55): void {
+    if (!this.ambienceActive || !this.context || !this.ambienceGain || this.muted) return;
+    const now = this.context.currentTime;
+    const current = Math.max(SILENCE, this.ambienceGain.gain.value);
+    this.ambienceGain.gain.cancelScheduledValues(now);
+    this.ambienceGain.gain.setValueAtTime(current, now);
+    this.ambienceGain.gain.linearRampToValueAtTime(current * 0.25, now + 0.05);
+    this.ambienceGain.gain.linearRampToValueAtTime(current, now + durationSec);
+  }
+
+  stopAmbience(): void {
+    if (!this.ambienceActive) return;
+    const context = this.context;
+    const gain = this.ambienceGain;
+    const osc = this.ambienceOsc;
+    const noise = this.ambienceNoise;
+    if (context && gain) {
+      const now = context.currentTime;
+      gain.gain.cancelScheduledValues(now);
+      gain.gain.setTargetAtTime(SILENCE, now, 0.08);
+      window.setTimeout(() => {
+        try {
+          osc?.stop();
+          noise?.stop();
+        } catch {
+          // already stopped
+        }
+        osc?.disconnect();
+        noise?.disconnect();
+        gain.disconnect();
+        this.ambienceFilter?.disconnect();
+      }, 220);
+    } else {
+      try {
+        osc?.stop();
+        noise?.stop();
+      } catch {
+        // already stopped
+      }
+    }
+    this.ambienceOsc = null;
+    this.ambienceNoise = null;
+    this.ambienceGain = null;
+    this.ambienceFilter = null;
+    this.ambienceActive = false;
+  }
+
+  private noiseBuffer(context: AudioContext): AudioBuffer {
+    const length = context.sampleRate * 2;
+    const buffer = context.createBuffer(1, length, context.sampleRate);
+    const data = buffer.getChannelData(0);
+    let seed = 0x9e3779b9;
+    for (let index = 0; index < length; index += 1) {
+      seed = Math.imul(seed ^ (seed >>> 16), 0x45d9f3b) >>> 0;
+      data[index] = ((seed & 0xffff) / 0xffff) * 2 - 1;
+    }
+    return buffer;
   }
 
   private ensureGraph(): AudioContext | null {

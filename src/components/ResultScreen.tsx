@@ -10,7 +10,7 @@ import {
 import { createReceipt } from "../game/engine";
 import type { CompiledStrategy, EngineState, RoundReceipt } from "../game/types";
 import { AudioToggle } from "./AudioToggle";
-import { CoreMark } from "./CoreMark";
+import { PixiArena } from "./PixiArena";
 
 type ResultScreenProps = Readonly<{
   state: EngineState;
@@ -75,15 +75,21 @@ export function ResultScreen({
   useEffect(() => {
     if (resultSoundPlayed.current) return;
     resultSoundPlayed.current = true;
+    gameAudio.updateAmbience(0, "result");
     gameAudio.play(held ? "round-held" : "round-lost");
+    return () => {
+      gameAudio.stopAmbience();
+    };
   }, [held]);
 
   return (
     <section className={`result screen ${held ? "result--held" : "result--lost"}`} aria-labelledby="result-title">
+      <div className="result__arena" aria-hidden="true">
+        <PixiArena state={state} frozen />
+      </div>
       <AudioToggle />
       <div className="truth-label">{truthLabel}</div>
       <div className="result__center">
-        <CoreMark size="large" active={held} />
         <p className="step-index">ROUND RESOLVED</p>
         <h1 id="result-title">{held ? "THE GRID HELD" : "THE CORE WENT DARK"}</h1>
         <p className="result__summary">
