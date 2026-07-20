@@ -1,5 +1,9 @@
 import { useMemo, useState } from "react";
-import { DEFAULT_STRATEGY, compileStrategy } from "../game/strategy";
+import {
+  DEFAULT_STRATEGY,
+  STRATEGY_EXAMPLES,
+  compileStrategy,
+} from "../game/strategy";
 import type { CompiledStrategy, StrategyPolicy } from "../game/types";
 import { CoreMark } from "./CoreMark";
 
@@ -21,6 +25,10 @@ function summaryLine(policy: StrategyPolicy): string {
 
 export function ProgramScreen({ initialSource, onBack, onConfirm }: ProgramScreenProps) {
   const [source, setSource] = useState(initialSource);
+  const [shouldAutoFocus] = useState(
+    () => typeof window === "undefined"
+      || !window.matchMedia("(pointer: coarse)").matches,
+  );
   const usingDefault = source.trim().length === 0;
   const compilation = useMemo(() => {
     try {
@@ -58,7 +66,7 @@ export function ProgramScreen({ initialSource, onBack, onConfirm }: ProgramScree
             maxLength={280}
             rows={3}
             spellCheck="true"
-            autoFocus
+            autoFocus={shouldAutoFocus}
             onChange={(event) => setSource(event.target.value)}
             placeholder="Circle the light. Send two units after anything that gets close, then return without chasing."
           />
@@ -68,6 +76,23 @@ export function ProgramScreen({ initialSource, onBack, onConfirm }: ProgramScree
               <span className="strategy-summary" aria-live="polite">{summaryLine(compilation.strategy.policy)}</span>
             ) : null}
           </div>
+        </div>
+
+        <div className="strategy-examples" aria-label="Tactic starters">
+          <span>TACTIC STARTERS</span>
+          {STRATEGY_EXAMPLES.map((example) => {
+            const active = source.trim() === example.source;
+            return (
+              <button
+                key={example.label}
+                type="button"
+                aria-pressed={active}
+                onClick={() => setSource(example.source)}
+              >
+                {example.label}
+              </button>
+            );
+          })}
         </div>
 
         {compilation.error ? <p className="form-error" role="alert">{compilation.error}</p> : null}

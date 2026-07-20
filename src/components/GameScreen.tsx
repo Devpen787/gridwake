@@ -9,6 +9,12 @@ import {
   worstSector,
 } from "../game/engine";
 import { PULSE_CLEAR_CAP, TICK_RATE, type EngineState, type ManualIntent } from "../game/types";
+import {
+  ControlsHint,
+  markControlsHintSeen,
+  shouldShowControlsHint,
+} from "./ControlsHint";
+import { EventToast } from "./EventToast";
 import { PixiArena } from "./PixiArena";
 
 type GameScreenProps = Readonly<{
@@ -78,10 +84,22 @@ export function GameScreen({
   const [state, setState] = useState(initialState);
   const [kick, setKick] = useState<KickKind>(null);
   const [pulseKick, setPulseKick] = useState(false);
+  const [showControlsHint, setShowControlsHint] = useState(() => shouldShowControlsHint());
   const resolvedRef = useRef(false);
   const keysRef = useRef(new Set<string>());
   const lastDamageRef = useRef(initialState.damageTaken);
   const lastPulseUsedRef = useRef(initialState.pulse.usedAtTick);
+
+  const dismissControlsHint = useCallback(() => {
+    markControlsHintSeen();
+    setShowControlsHint(false);
+  }, []);
+
+  useEffect(() => {
+    if (!showControlsHint) return;
+    const timeout = window.setTimeout(dismissControlsHint, 7_000);
+    return () => window.clearTimeout(timeout);
+  }, [dismissControlsHint, showControlsHint]);
 
   useEffect(() => {
     let frame = 0;
@@ -169,17 +187,20 @@ export function GameScreen({
       if (event.repeat) return;
       if (event.code === "Space") {
         event.preventDefault();
+        dismissControlsHint();
         pulse();
         return;
       }
       if (!allowPossess || state.ended) return;
       if (event.code === "Escape") {
         event.preventDefault();
+        dismissControlsHint();
         setState((current) => setPossession(current, null));
         return;
       }
       if (event.code === "Digit1" || event.code === "Digit2" || event.code === "Digit3") {
         event.preventDefault();
+        dismissControlsHint();
         const index = Number(event.code.slice(-1)) - 1;
         setState((current) => {
           const light = current.lights[index];
@@ -190,6 +211,7 @@ export function GameScreen({
       }
       if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "KeyW", "KeyA", "KeyS", "KeyD"].includes(event.code)) {
         event.preventDefault();
+        dismissControlsHint();
         keysRef.current.add(event.code);
       }
     }
@@ -202,7 +224,7 @@ export function GameScreen({
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
     };
-  }, [allowPossess, pulse, state.ended]);
+  }, [allowPossess, dismissControlsHint, pulse, state.ended]);
 
   const threat = useMemo(() => threatLevel(state.corruption), [state.corruption]);
   const sector = useMemo(() => worstSector(state.corruption), [state.corruption]);
@@ -229,6 +251,12 @@ export function GameScreen({
       <div className="pixi-arena-shell">
         <PixiArena state={state} />
       </div>
+      <EventToast event={state.lastEvent} />
+      <ControlsHint
+        visible={showControlsHint}
+        allowPossess={allowPossess}
+        onDismiss={dismissControlsHint}
+      />
       <header className="game-hud game-hud--top">
         <div className={`health-readout health-readout--${band}`}>
           <span>CORE HEALTH</span>
