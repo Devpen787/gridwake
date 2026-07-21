@@ -46,40 +46,40 @@ const SENTENCE = "Guard the core in a tight disciplined ring. Send two units wit
   }, text);
 
   // ── 1. Landing (0:00–0:07)
-  await caption("GRIDWAKE — command a squad of three lights with one English sentence.");
+  await caption("Every game gives you buttons. This one gives you words.");
   mark("landing");
   await page.waitForTimeout(6200);
 
   // ── 2. Campaign ladder (0:07–0:15)
   await page.click("text=CAMPAIGN");
   await page.waitForSelector("text=GRID LADDER");
-  await caption("Eight fixed-seed grids. Hold each one to unlock the next. Beat par to earn stars.");
+  await caption("Eight grids. Fixed seeds. Hold one to unlock the next \u2014 beat par for stars.");
   mark("ladder");
   await page.waitForTimeout(7200);
 
   // ── 3. Level briefing + typed sentence (0:15–0:28)
   await page.click("text=FIRST LIGHT");
   await page.waitForSelector("text=STRATEGY LABORATORY");
-  await caption("Every grid briefs you. Then it asks for one sentence.");
+  await caption("The grid tells you what\u2019s coming. You tell your squad how to survive it.");
   mark("lab");
   await page.waitForTimeout(3800);
-  await caption("Write your strategy in plain English…");
+  await caption("Just write it down\u2026");
   await page.click("#strategy");
   await page.keyboard.type(SENTENCE, { delay: 34 });
   mark("typed");
   await page.waitForTimeout(700);
 
   // ── 4. Compiled plan (0:28–0:39)
-  await caption("A local compiler turns your words into a plan — and shows what it understood.");
+  await caption("Before anything moves, it shows you what it heard.");
   await page.screenshot({ path: `${QA}/demo-beat-plan.png` });
   await page.waitForTimeout(5600);
   await page.click("text=HOW IT READ YOUR WORDS");
-  await caption("Quoted evidence for every clause. You can command each light by name. No API calls.");
+  await caption("Every word accounted for. Nothing hidden. Nothing phoned home.");
   mark("evidence");
   await page.waitForTimeout(5200);
 
   // ── 5. Wake (0:39–0:41)
-  await caption("Wake the squad.");
+  await caption("Wake them.");
   await page.click(".strategy-lab__wake .primary-action");
   mark("wake");
 
@@ -87,11 +87,11 @@ const SENTENCE = "Guard the core in a tight disciplined ring. Send two units wit
   await page.waitForSelector("text=CORE HEALTH", { timeout: 30000 });
   mark("round-start");
   await page.waitForTimeout(1500);
-  await caption("45 seconds. Corruption floods in from every edge.");
+  await caption("45 seconds. The corruption doesn\u2019t wait.");
   await page.waitForTimeout(6500);
-  await caption("Your sentence is the AI — a disciplined ring, two interceptors, no chasing.");
+  await caption("Your words are out there fighting \u2014 a tight ring, two hunters, nobody chases.");
   await page.waitForTimeout(7000);
-  await caption("Or seize a light yourself: six seconds of manual override.");
+  await caption("When it gets personal, step in yourself. Six seconds at a time.");
   await page.keyboard.press("2");
   await page.waitForTimeout(500);
   for (const key of ["w", "a", "w", "a", "s", "d", "w", "a"]) {
@@ -102,30 +102,30 @@ const SENTENCE = "Guard the core in a tight disciplined ring. Send two units wit
   mark("possession-done");
   await page.screenshot({ path: `${QA}/demo-beat-possess.png` });
   await page.waitForTimeout(3000);
-  await caption("Phases escalate: probe… surge… collapse. The grid fights back harder.");
+  await caption("It gets worse. It always gets worse.");
   await page.waitForTimeout(7000);
-  await caption("One Pulse per round. Your sentence aims it \u2014 the reticle shows where it strikes.");
+  await caption("One Pulse. Your words already chose where it lands.");
   await page.waitForTimeout(3400);
   await page.keyboard.press(" ");
   mark("pulse");
   await page.waitForTimeout(4500);
-  await caption("Hold the line.");
+  await caption("Hold on.");
 
   // ── 7. Result
   await page.waitForSelector("text=/THE GRID HELD|THE CORE WENT DARK/", { timeout: 90000 });
   mark("result");
   await page.waitForTimeout(1200);
-  await caption("Graded. Attributed. Par beaten — the next grid unlocks.");
+  await caption("When the dust settles, every choice you wrote gets graded.");
   await page.screenshot({ path: `${QA}/demo-beat-result.png` });
   await page.waitForTimeout(7500);
 
   // ── 8. Ladder with progress + outro
   await page.click("text=GRID LADDER");
   await page.waitForSelector("text=GRID LADDER");
-  await caption("Every round archived — stars, ranks, streaks, personal bests.");
+  await caption("Your story stacks up \u2014 stars, streaks, ranks, personal bests.");
   mark("outro-ladder");
   await page.waitForTimeout(6000);
-  await caption("GRIDWAKE · gridwake.vercel.app — one sentence. one light. one shared grid.");
+  await caption("GRIDWAKE \u2014 say what you mean. Watch it fight. \u00b7 gridwake.vercel.app");
   await page.screenshot({ path: `${QA}/demo-beat-outro.png` });
   await page.waitForTimeout(6500);
   await caption(null);

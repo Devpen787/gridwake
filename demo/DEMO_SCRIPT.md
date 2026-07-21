@@ -1,90 +1,93 @@
 # GRIDWAKE — 2-Minute Demo
 
-**Video:** [`demo/gridwake-demo.webm`](gridwake-demo.webm) · 1:51 · 1920×1080 · recorded live against https://gridwake.vercel.app
+**Video:** [`demo/gridwake-demo.webm`](gridwake-demo.webm) · 1:48 · 1920×1080 · recorded live against https://gridwake.vercel.app
 Open it in Chrome (QuickTime can't play WebM): `open -a "Google Chrome" demo/gridwake-demo.webm`
 Need an `.mp4` for the submission form? `ffmpeg -i gridwake-demo.webm -c:v libx264 -crf 20 -pix_fmt yuv420p gridwake-demo.mp4`
 
-The video already has on-screen captions baked in, so it works silently. The voiceover below is optional — if you record it over the video, each line is timed to fit its scene at a relaxed speaking pace.
+The video carries its own on-screen captions, so it works with no audio at all. The voiceover below is optional — read it over the video and each line lands inside its scene at an easy pace. Don't rush; the pauses are part of it.
 
 ---
 
-## Voiceover script (read this aloud)
+## Voiceover script
 
-**[0:00 – Landing page]**
-This is GRIDWAKE. It's a strategy game where you don't get a controller — you get one English sentence.
+**[0:00 — Landing page]**
+Every game hands you buttons. This one hands you words.
 
-**[0:08 – Campaign ladder]**
-There's a campaign of eight grids. Hold a grid to unlock the next one, and beat par to earn stars.
+**[0:08 — Campaign ladder]**
+Eight grids stand between you and the end. Every one of them is fixed — same board for every player, every time. Hold a grid and the next one opens.
 
-**[0:15 – Briefing, then typing]**
-Each grid briefs you, then asks for your strategy. So I just type what I want my squad to do... in plain English.
+**[0:15 — Briefing appears]**
+The grid tells you what's coming. Your job is to tell your squad how to survive it.
 
-**[0:26 – Plan card appears]**
-Before anything runs, a local compiler shows me the plan it built from my words.
+**[0:19 — Typing, live]**
+So you just... write it down. Guard the core. Send two. Don't chase.
 
-**[0:32 – Evidence panel expands]**
-It quotes the exact phrases it used — and I could command each light by name. No AI API calls. This all runs in the browser, deterministically.
+**[0:26 — Plan card fills in]**
+And before anything moves — it shows you what it heard.
 
-**[0:37 – WAKE]**
-Let's wake the squad.
+**[0:32 — Evidence panel]**
+Every word, accounted for. Nothing hidden, nothing random, nothing phoned home.
 
-**[0:40 – Round begins]**
-Forty-five seconds. Corruption pours in from every edge of the grid.
+**[0:37 — WAKE]**
+Then you wake them.
 
-**[0:47 – Ring forms]**
-My sentence is the AI: hold a tight ring, send two interceptors, never chase.
+**[0:40 — Round begins]**
+Forty-five seconds. The corruption doesn't wait.
 
-**[0:54 – Possession, WASD]**
-And when I want direct control, I take it — possessing a light gives me six seconds of manual override.
+**[0:47 — The ring forms]**
+Now your words are out there fighting for you. A tight ring. Two hunters. Nobody chases.
 
-**[1:04 – Pressure builds]**
-The round escalates through phases: probe, surge, collapse. The grid fights harder as time runs out.
+**[0:54 — Possession]**
+And when it gets personal — you step in yourself. Six seconds at a time.
 
-**[1:11 – Reticle, then Pulse fires]**
-I get exactly one Pulse. My sentence aims it — that reticle shows where it'll strike... and there it goes.
+**[1:04 — Pressure builds]**
+It gets worse. It always gets worse.
 
-**[1:19 – Final seconds]**
-Last few seconds. The ring holds.
+**[1:11 — Reticle, Pulse fires]**
+You get one Pulse. One. Your words already chose where it lands.
 
-**[1:26 – Result card]**
-Every round is graded, and every outcome is traced back to the words that caused it. I beat par — so the next grid unlocks.
+**[1:19 — Final seconds]**
+Hold on...
 
-**[1:37 – Starred ladder]**
-Everything gets archived: stars, ranks, streaks, personal bests.
+**[1:26 — Result card]**
+And when the dust settles, every choice you wrote gets graded. Beat par... and the next grid opens.
 
-**[1:44 – Closing]**
-GRIDWAKE. One sentence. One light. One shared grid. Play it at gridwake dot vercel dot app.
+**[1:37 — Starred ladder]**
+Your story stacks up — stars, streaks, ranks, personal bests.
+
+**[1:44 — Closing]**
+GRIDWAKE. Say what you mean. Watch it fight.
 
 ---
 
-## On-screen captions (already in the video — for reference)
+## On-screen captions (baked into the video — for reference)
 
 | Time | Caption |
 | --- | --- |
-| 0:00 | GRIDWAKE — command a squad of three lights with one English sentence. |
-| 0:08 | Eight fixed-seed grids. Hold each one to unlock the next. Beat par to earn stars. |
-| 0:15 | Every grid briefs you. Then it asks for one sentence. |
-| 0:19 | Write your strategy in plain English… |
-| 0:26 | A local compiler turns your words into a plan — and shows what it understood. |
-| 0:32 | Quoted evidence for every clause. You can command each light by name. No API calls. |
-| 0:37 | Wake the squad. |
-| 0:40 | 45 seconds. Corruption floods in from every edge. |
-| 0:47 | Your sentence is the AI — a disciplined ring, two interceptors, no chasing. |
-| 0:54 | Or seize a light yourself: six seconds of manual override. |
-| 1:04 | Phases escalate: probe… surge… collapse. The grid fights back harder. |
-| 1:11 | One Pulse per round. Your sentence aims it — the reticle shows where it strikes. |
-| 1:19 | Hold the line. |
-| 1:26 | Graded. Attributed. Par beaten — the next grid unlocks. |
-| 1:37 | Every round archived — stars, ranks, streaks, personal bests. |
-| 1:44 | GRIDWAKE · gridwake.vercel.app — one sentence. one light. one shared grid. |
+| 0:00 | Every game gives you buttons. This one gives you words. |
+| 0:08 | Eight grids. Fixed seeds. Hold one to unlock the next — beat par for stars. |
+| 0:15 | The grid tells you what's coming. You tell your squad how to survive it. |
+| 0:19 | Just write it down… |
+| 0:26 | Before anything moves, it shows you what it heard. |
+| 0:32 | Every word accounted for. Nothing hidden. Nothing phoned home. |
+| 0:37 | Wake them. |
+| 0:40 | 45 seconds. The corruption doesn't wait. |
+| 0:47 | Your words are out there fighting — a tight ring, two hunters, nobody chases. |
+| 0:54 | When it gets personal, step in yourself. Six seconds at a time. |
+| 1:04 | It gets worse. It always gets worse. |
+| 1:11 | One Pulse. Your words already chose where it lands. |
+| 1:19 | Hold on. |
+| 1:26 | When the dust settles, every choice you wrote gets graded. |
+| 1:37 | Your story stacks up — stars, streaks, ranks, personal bests. |
+| 1:44 | GRIDWAKE — say what you mean. Watch it fight. · gridwake.vercel.app |
 
 ## The one-breath pitch (if you only get 15 seconds)
 
-GRIDWAKE is a deterministic strategy game where your controller is a sentence. A local compiler turns plain English into a squad AI, shows you exactly how it read every word, and grades the round — same seed, same words, same outcome, every time.
+GRIDWAKE is a strategy game where your controller is a sentence. Write what you want your squad to do, watch a local compiler turn it into behavior — with every word accounted for — and get graded on how it went. Same seed, same words, same outcome, every time.
 
 ## Re-recording
 
-The take is fully scripted and reproducible (same seed + same sentence ⇒ same round):
+The take is fully scripted and reproducible (same seed + same words ⇒ same round):
 
 ```bash
 # Requires playwright resolvable from the repo (npx playwright install chromium once).
