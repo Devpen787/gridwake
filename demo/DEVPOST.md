@@ -26,6 +26,8 @@ There's a campaign of eight fixed-seed grids with par scores, star ratings, and 
 
 ## How we built it
 
+Codex and GPT-5.6 were the development partner for the majority of the core: shaping the game contract, implementing and debugging the deterministic engine and UI, building the bounded Instinct compiler and P2P mode, testing real browser flows, diagnosing performance failures, reviewing security boundaries, and deploying the result. I retained the key product and engineering decisions—most importantly that language interpretation must be visible before play, that live physics must remain deterministic, and that the game must never pretend a network or compiler state succeeded when it did not. The primary `/feedback` Session ID is `019f7658-6844-7f62-a335-cc58ccdee45d`. GPT-5.6 does not run inside the shipped game; its contribution is the development and verification work documented in the repository.
+
 The core is a **bounded tactical-language compiler** (`local-instinct-v2`, ~1,760 lines of TypeScript) that runs entirely in the browser. There is no model API call at play time. The pipeline:
 
 ```

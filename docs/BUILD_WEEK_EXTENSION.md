@@ -20,13 +20,14 @@ This file records work added during the Build Week extension polish pass on bran
 
 | Role | Tool | Scope |
 | --- | --- | --- |
-| Judged-core implementation (Prompts 01–08) | Cursor agent executing the GRIDWAKE Implementation Pack on branch `demo-final-polish` | One commit per gate; `npm run verify` per gate |
+| Core product and implementation | Codex + GPT-5.6 | Product definition, deterministic engine, playable UI, Instinct compiler, P2P multiplayer, replay verification, security review, test loop, and deployment |
+| Later polish implementation | Cursor agent executing the GRIDWAKE Implementation Pack on branch `demo-final-polish` | One commit per gate; `npm run verify` per gate |
 | Pack / prompts source | `GRIDWAKE_IMPLEMENTATION_PACK.md` | Scaffolded audio, HUD, comparison, CI, docs |
-| Primary `/feedback` Session ID | *Placeholder* | Paste a real Codex `/feedback` ID when available — **never invent** |
+| Primary `/feedback` Session ID | `019f7658-6844-7f62-a335-cc58ccdee45d` | Verified through `/feedback` in the Codex CLI task where the majority of core functionality was built |
 
-Primary Codex `/feedback` Session ID: `PENDING — replace with real Session ID from /feedback`
+Primary Codex `/feedback` Session ID: `019f7658-6844-7f62-a335-cc58ccdee45d`
 
-Disclosure: this polish pass was implemented in Cursor rather than a separate Codex CLI session. If submission requires a Codex Session ID, generate one via Codex `/feedback` on this branch and replace the placeholder above before final submit.
+Disclosure: GRIDWAKE's core was built in the Codex session above. A later, bounded implementation-pack polish pass was executed in Cursor; it does not replace or misrepresent the primary Codex core-build record.
 
 ## Pre-existing vs added during Build Week
 
@@ -64,14 +65,14 @@ Disclosure: this polish pass was implemented in Cursor rather than a separate Co
 3. Audio is procedural Web Audio only — no asset packs.
 4. Same-seed comparison labels “attempt,” not strategy-only causality.
 5. Touch controls only after Prompts 01–05 verified green.
-6. Session ID left as `PENDING` rather than fabricating eligibility evidence.
+6. Primary Session ID was recovered through Codex CLI `/feedback`; no identifier was inferred or fabricated.
 
 ## Explicit disclosures
 
 1. The runtime sentence compiler is **local**. It does not call OpenAI during play.
 2. Replay hashes are local and unsigned; the multiplayer host can cheat.
 3. Round length shown to players matches `ROUND_SECONDS` (45).
-4. Build Week Session ID above remains a placeholder until a real `/feedback` ID is pasted.
+4. The Build Week Session ID above is the verified `/feedback` ID for the primary core-build thread.
 
 ## Test / deployment evidence
 

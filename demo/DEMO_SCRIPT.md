@@ -1,7 +1,7 @@
 # GRIDWAKE — 2-Minute Demo
 
-**Video:** [`demo/gridwake-demo.mp4`](gridwake-demo.mp4) — 1:48 · 1920×1080 · H.264 + AAC voiceover · 12 MB · recorded live against https://gridwake.vercel.app
-**This is the file to upload.** It has narration audio and matching on-screen captions.
+**Submission video:** [`demo/gridwake-demo-submission.mp4`](gridwake-demo-submission.mp4) — 1:48 · 1920×1080 · H.264 + AAC voiceover · recorded live against https://gridwake.vercel.app
+**This is the file to upload.** It has narration audio, supporting on-screen captions, and the required spoken Codex/GPT-5.6 contribution summary.
 Silent source recording: [`demo/gridwake-demo.webm`](gridwake-demo.webm) — VP8, plays in Chrome.
 
 The narration below is the script that was recorded; it is muxed into the mp4 and loudness-normalized to −16 LUFS for YouTube.
@@ -53,7 +53,7 @@ Hold on...
 And when the dust settles, every choice you wrote gets graded. Beat par... and the next grid opens.
 
 **[1:37 — Starred ladder]**
-Your story stacks up — stars, streaks, ranks, personal bests.
+Codex and GPT-5.6 helped me build and test the compiler, simulation, multiplayer, and this complete game during Build Week.
 
 **[1:44 — Closing]**
 GRIDWAKE. Say what you mean. Watch it fight.

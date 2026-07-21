@@ -44,4 +44,4 @@ Run after `npm ci && npm run verify`. Mark only what was actually exercised.
 - Deploy commit SHA: see git tip after `fix: close final demo regressions`
 - Deployment ID: `dpl_A6v9V47zfayVNMvZHt6MFQk6Bf3h`
 - URL: https://gridwake.vercel.app
-- Primary `/feedback` Session ID: `PENDING` in `docs/BUILD_WEEK_EXTENSION.md`
+- Primary `/feedback` Session ID: `019f7658-6844-7f62-a335-cc58ccdee45d`

@@ -6,7 +6,7 @@
 
 Production preview: **https://gridwake.vercel.app**
 
-**2-minute demo video** (captioned, recorded against production): [`demo/gridwake-demo.mp4`](demo/gridwake-demo.mp4) · script + voiceover lines: [`demo/DEMO_SCRIPT.md`](demo/DEMO_SCRIPT.md)
+**1:48 submission demo** (captioned, narrated, recorded against production): [`demo/gridwake-demo-submission.mp4`](demo/gridwake-demo-submission.mp4) · script + voiceover lines: [`demo/DEMO_SCRIPT.md`](demo/DEMO_SCRIPT.md)
 
 GRIDWAKE is a deterministic **45-second** strategy game. Write one sentence, wake a three-light squad, and hold a neon grid. A bounded tactical-language compiler (`local-instinct-v2`) turns prose into a canonical plan, shows what it understood, and lowers to engine dials; a seeded engine makes the round varied but exactly replayable.
 
@@ -49,7 +49,9 @@ Evidence and dated SHAs: [`docs/BUILD_WEEK_EXTENSION.md`](docs/BUILD_WEEK_EXTENS
 
 ## How Codex and GPT-5.6 were used
 
-Build Week rules require Codex + GPT-5.6 for the judged core. This polish pass was executed in Cursor against the GRIDWAKE Implementation Pack (Prompts 01–08). Primary `/feedback` Session ID: see `docs/BUILD_WEEK_EXTENSION.md` (placeholder until a real Codex `/feedback` ID is pasted — never fabricated).
+GRIDWAKE's core functionality was built collaboratively with Codex and GPT-5.6 during Build Week: product definition, the deterministic engine, the first playable UI, the bounded Instinct compiler, P2P multiplayer, replay checks, security review, testing, and production deployment. I made the product calls—especially keeping the live runtime deterministic and local, making every interpretation visible before play, and treating unsupported multiplayer states as explicit failures rather than hiding them. Codex accelerated implementation, browser playtesting, performance diagnosis, formal verification, adversarial review, and the build-test-fix loop. A later implementation-pack polish pass was executed in Cursor and is disclosed separately in the dated extension record.
+
+Primary Codex `/feedback` Session ID (the thread where the majority of core functionality was built): `019f7658-6844-7f62-a335-cc58ccdee45d`.
 
 **Runtime:** the sentence compiler is a **local** bounded tactical-language pipeline (`src/game/instinct/`, label `local-instinct-v2`). There is no OpenAI API call during play.
 
@@ -94,7 +96,7 @@ Requires Node 22+ and Python 3.12 (`python3.12` on PATH for golden validation).
 - Score history, campaign progress, and ranks are per-device (localStorage); no signed/server receipts or global leaderboards.
 - Cross-network restrictive-NAT failure path unproven.
 - Balance is provisional; fixtures prove reproducibility, not “fun.”
-- Demo video / screenshot assets may still be pending under `demo/` and `docs/BUILD_WEEK_EXTENSION.md`.
+- The narrated submission demo is checked in at `demo/gridwake-demo-submission.mp4`; upload this exact file publicly to YouTube and supply that URL in the Devpost submission form.
 
 ## Specs and deeper docs
 
