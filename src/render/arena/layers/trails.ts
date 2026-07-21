@@ -7,12 +7,27 @@ import type { ArenaLayout } from "../layout";
 import { pxX, pxY } from "../layout";
 import { PALETTE, TRAIL_RENDER_CAP } from "../palette";
 
+function trailCap(role: LightState["role"]): number {
+  // Mender history is short so amber never paints the whole board.
+  if (role === "mender") return Math.min(14, TRAIL_RENDER_CAP);
+  if (role === "scout") return Math.min(18, TRAIL_RENDER_CAP);
+  return TRAIL_RENDER_CAP;
+}
+
 function trailAlpha(role: LightState["role"], t: number): number {
   // Newest 15–25% brightest; oldest faint.
-  const brightZone = role === "scout" ? 0.22 : role === "mender" ? 0.2 : 0.18;
-  if (t >= 1 - brightZone) return role === "scout" ? 0.72 : role === "guardian" ? 0.7 : 0.58;
-  if (t >= 0.45) return role === "scout" ? 0.18 + (t - 0.45) * 0.35 : 0.22 + (t - 0.45) * 0.4;
-  return role === "scout" ? 0.04 + t * 0.12 : role === "mender" ? 0.05 + t * 0.16 : 0.08 + t * 0.2;
+  const brightZone = role === "scout" ? 0.28 : role === "mender" ? 0.3 : 0.2;
+  if (t >= 1 - brightZone) {
+    return role === "scout" ? 0.7 : role === "guardian" ? 0.68 : 0.48;
+  }
+  if (t >= 0.5) {
+    return role === "mender"
+      ? 0.08 + (t - 0.5) * 0.28
+      : role === "scout"
+        ? 0.12 + (t - 0.5) * 0.32
+        : 0.16 + (t - 0.5) * 0.36;
+  }
+  return role === "mender" ? 0.02 + t * 0.08 : role === "scout" ? 0.03 + t * 0.1 : 0.06 + t * 0.14;
 }
 
 export function drawTrails(
@@ -23,12 +38,11 @@ export function drawTrails(
   const clip = arenaClipRect(layout.originX, layout.originY, layout.width, layout.height);
   for (const light of state.lights) {
     if (light.trail.length < 2) continue;
-    const trail = light.trail.length > TRAIL_RENDER_CAP
-      ? light.trail.slice(-TRAIL_RENDER_CAP)
-      : light.trail;
+    const cap = trailCap(light.role);
+    const trail = light.trail.length > cap ? light.trail.slice(-cap) : light.trail;
     const width = Math.max(
-      1.6,
-      layout.cell * (light.role === "scout" ? 0.08 : light.role === "guardian" ? 0.13 : 0.1),
+      1.5,
+      layout.cell * (light.role === "scout" ? 0.07 : light.role === "guardian" ? 0.12 : 0.08),
     );
     for (let index = 1; index < trail.length; index += 1) {
       const from = trail[index - 1]!;
@@ -48,24 +62,22 @@ export function drawTrails(
           ? PALETTE.system
           : light.color;
       const alpha = trailAlpha(light.role, t);
-      // Mender: brighten when near another light trail (shared network).
       let boost = 1;
       if (light.role === "mender") {
         const nearAlly = state.lights.some((other) => (
           other.id !== light.id && manhattan(to, other) <= 2
         ));
         const nearRepair = state.repairs.some((repair) => manhattan(to, repair) <= 1);
-        if (nearAlly || nearRepair) boost = 1.35;
-        else if (t < 0.55) boost = 0.55;
+        if (nearAlly || nearRepair) boost = 1.4;
+        else if (t < 0.6) boost = 0.4;
       }
       strokeSegment(graphics, clipped.x1, clipped.y1, clipped.x2, clipped.y2, {
         color,
-        width: width * (0.5 + t * 0.55),
-        alpha: Math.min(0.78, alpha * boost),
+        width: width * (0.45 + t * 0.55),
+        alpha: Math.min(light.role === "mender" ? 0.55 : 0.72, alpha * boost),
       });
     }
 
-    // Short directional energy on the newest segment only (clipped).
     if (trail.length >= 2) {
       const from = trail[trail.length - 2]!;
       const to = trail[trail.length - 1]!;
@@ -78,8 +90,8 @@ export function drawTrails(
       if (clipped) {
         strokeSegment(graphics, clipped.x1, clipped.y1, clipped.x2, clipped.y2, {
           color: light.role === "mender" ? PALETTE.rescue : light.color,
-          width: width * 1.15,
-          alpha: light.role === "scout" ? 0.55 : 0.42,
+          width: width * 1.2,
+          alpha: light.role === "scout" ? 0.58 : light.role === "mender" ? 0.4 : 0.45,
         });
       }
     }

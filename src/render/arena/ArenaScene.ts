@@ -12,7 +12,7 @@ import { layoutFor, pxX, pxY, type ArenaLayout } from "./layout";
 import { drawAtmosphere } from "./layers/atmosphere";
 import { drawCore } from "./layers/core";
 import { drawCorruption } from "./layers/corruption";
-import { drawGrid, type PulseWarp } from "./layers/grid";
+import { drawGrid, gridFieldFor, type PulseWarp } from "./layers/grid";
 import { drawImpacts } from "./layers/impacts";
 import { drawPulse, drawWarningShimmer } from "./layers/pulse";
 import { drawRoles } from "./layers/roles";
@@ -111,11 +111,12 @@ export class ArenaScene {
     drawAtmosphere(this.atmosphereLayer, layout, phase, frozen);
 
     const allowWarp = !reducedMotion && !frozen;
-    const warp = pulseWarpFor(state, layout, allowWarp);
+    const pulse = pulseWarpFor(state, layout, allowWarp);
+    const field = gridFieldFor(layout, pulse, reducedMotion || frozen);
     resetGraphics(this.worldLayer);
     // Arena border acts as the hard visual frame; all rays/trails/veins also
     // pass through clipLineSegment so nothing escapes the grid AABB.
-    drawGrid(this.worldLayer, layout, warp, frozen);
+    drawGrid(this.worldLayer, layout, field, frozen);
     drawTactics(this.worldLayer, layout, state);
     drawCorruption(
       this.worldLayer,
@@ -192,6 +193,6 @@ function pulseWarpFor(
     x: pxX(layout, state.pulse.x),
     y: pxY(layout, state.pulse.y),
     radius: layout.cell * (0.8 + progress * 8.2),
-    strength: (1 - progress) * layout.cell * 0.55,
+    strength: (1 - progress) * layout.cell * 0.85,
   };
 }

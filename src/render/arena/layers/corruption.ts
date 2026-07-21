@@ -77,9 +77,10 @@ export function drawCorruption(
     const s = hasNeighbor(living, point.x, point.y, 0, 1);
     const w = hasNeighbor(living, point.x, point.y, -1, 0);
     const isolated = !n && !e && !s && !w;
+    // Adjacent cells share edges with zero inset so the mass reads as one organism.
     const inset = isolated
-      ? Math.max(1.2, layout.cell * 0.12)
-      : Math.max(0.2, layout.cell * 0.02);
+      ? Math.max(1.4, layout.cell * 0.14)
+      : 0;
     const left = x + (w ? 0 : inset);
     const top = y + (n ? 0 : inset);
     const right = x + layout.cell - (e ? 0 : inset);
@@ -87,10 +88,21 @@ export function drawCorruption(
     const pressure = pressureTowardCore(point);
     const shrinkX = die * pressure.x * layout.cell * 0.28;
     const shrinkY = die * pressure.y * layout.cell * 0.28;
-    const bodyAlpha = Math.min(0.88, (onRim ? 0.82 : nearCore ? 0.62 : 0.58) * aggression * life);
+    const bodyAlpha = Math.min(0.94, (onRim ? 0.9 : nearCore ? 0.72 : 0.78) * aggression * life);
     graphics
       .rect(left + shrinkX, top + shrinkY, Math.max(1, right - left), Math.max(1, bottom - top))
       .fill({ color: PALETTE.corruptionBody, alpha: bodyAlpha });
+    // Soft interior wash so sparse cells still feel dense.
+    if (!isolated) {
+      graphics
+        .rect(
+          x + layout.cell * 0.12,
+          y + layout.cell * 0.12,
+          layout.cell * 0.76,
+          layout.cell * 0.76,
+        )
+        .fill({ color: 0x1a050a, alpha: 0.35 * life * aggression });
+    }
   }
 
   // 2) Veins — adjacent living links (cardinal + useful diagonals).
@@ -106,7 +118,7 @@ export function drawCorruption(
     ].filter((candidate) => living.has(candidate.key) && candidate.key > key);
     for (const candidate of candidates) {
       const hash = veinHash(key, candidate.key);
-      if ((hash & 7) === 0) continue;
+      if ((hash & 15) === 0) continue;
       const ax = pxX(layout, a.x);
       const ay = pxY(layout, a.y);
       const bx = pxX(layout, candidate.x);
@@ -125,8 +137,8 @@ export function drawCorruption(
         my - offset * 0.35,
         {
           color: PALETTE.corruptionVein,
-          width: phase === "collapse" ? 1.4 : 1.05,
-          alpha: phase === "probe" ? 0.32 : 0.52,
+          width: phase === "collapse" ? 1.55 : 1.2,
+          alpha: phase === "probe" ? 0.38 : 0.58,
         },
       );
       strokeSegment(
@@ -137,8 +149,8 @@ export function drawCorruption(
         clipped.y2,
         {
           color: PALETTE.corruptionVein,
-          width: phase === "collapse" ? 1.4 : 1.05,
-          alpha: phase === "probe" ? 0.32 : 0.52,
+          width: phase === "collapse" ? 1.55 : 1.2,
+          alpha: phase === "probe" ? 0.38 : 0.58,
         },
       );
     }
@@ -182,39 +194,77 @@ export function drawCorruption(
       strokeSegment(graphics, clipped.x1, clipped.y1, clipped.x2, clipped.y2, {
         color: edge.towardCore ? PALETTE.corruptionFrontier : PALETTE.dangerSoft,
         width: edge.towardCore
-          ? (phase === "collapse" ? 2.1 : phase === "surge" ? 1.7 : 1.35)
-          : 1,
+          ? (phase === "collapse" ? 2.4 : phase === "surge" ? 2.0 : 1.65)
+          : 1.15,
         alpha,
       });
     }
   }
 
-  // Short clipped pressure bridges from active frontier toward core (no unbounded rays).
+  // Rim spray — short triangles peeling off the outer crust (north-star debris).
+  if (!reducedMotion) {
+    let sprayCount = 0;
+    for (const key of livingKeys) {
+      if (sprayCount >= 28) break;
+      const visual = visuals.get(key);
+      if (!visual || visual.dyingAtTick !== null) continue;
+      const point = parseCellKey(key);
+      if (!isRimCell(point, GRID_COLUMNS, GRID_ROWS)) continue;
+      const hash = veinHash(key, "spray");
+      if ((hash & 3) !== 0) continue;
+      const cx = pxX(layout, point.x);
+      const cy = pxY(layout, point.y);
+      const outwardX = point.x < GRID_COLUMNS / 2 ? -1 : 1;
+      const outwardY = point.y < GRID_ROWS / 2 ? -1 : 1;
+      const tipX = cx + outwardX * layout.cell * (0.55 + ((hash >>> 3) & 7) * 0.08);
+      const tipY = cy + outwardY * layout.cell * (0.45 + ((hash >>> 6) & 7) * 0.07);
+      const clippedA = clipLineSegment({ x1: cx, y1: cy, x2: tipX, y2: tipY }, clip);
+      if (!clippedA) continue;
+      strokeSegment(graphics, clippedA.x1, clippedA.y1, clippedA.x2, clippedA.y2, {
+        color: PALETTE.corruptionFrontier,
+        width: 1.25,
+        alpha: 0.55 * aggression,
+      });
+      const wing = layout.cell * 0.22;
+      strokeSegment(
+        graphics,
+        tipX,
+        tipY,
+        tipX - outwardY * wing,
+        tipY + outwardX * wing,
+        { color: PALETTE.dangerSoft, width: 1, alpha: 0.4 * aggression },
+      );
+      sprayCount += 1;
+    }
+  }
+
+  // Longer clipped pressure bridges from active frontier toward core.
   if (!reducedMotion && phase !== "probe") {
     const bridges = livingKeys
       .filter((key) => {
         const visual = visuals.get(key);
         if (!visual || visual.dyingAtTick !== null) return false;
         const point = parseCellKey(key);
-        return isRimCell(point, GRID_COLUMNS, GRID_ROWS) && coreDistance(point) > 5;
+        return isRimCell(point, GRID_COLUMNS, GRID_ROWS) && coreDistance(point) > 4;
       })
-      .slice(0, 8);
+      .slice(0, 12);
     for (const key of bridges) {
       const point = parseCellKey(key);
       const pressure = pressureTowardCore(point);
       const cx = pxX(layout, point.x);
       const cy = pxY(layout, point.y);
+      const reach = layout.cell * (2.4 + aggression * 1.6);
       const clipped = clipLineSegment({
         x1: cx,
         y1: cy,
-        x2: cx + pressure.x * layout.cell * 1.1 * aggression,
-        y2: cy + pressure.y * layout.cell * 1.1 * aggression,
+        x2: cx + pressure.x * reach,
+        y2: cy + pressure.y * reach,
       }, clip);
       if (!clipped) continue;
       strokeSegment(graphics, clipped.x1, clipped.y1, clipped.x2, clipped.y2, {
         color: PALETTE.dangerSoft,
-        width: 1,
-        alpha: 0.28 * aggression,
+        width: 1.15,
+        alpha: 0.38 * aggression,
       });
     }
   }

@@ -40,8 +40,8 @@ export function drawTactics(
     if (clipped) {
       strokeSegment(graphics, clipped.x1, clipped.y1, clipped.x2, clipped.y2, {
         color: PALETTE.dangerSoft,
-        width: 1.2,
-        alpha: 0.22,
+        width: 1.45,
+        alpha: 0.34,
       });
     }
   }
@@ -51,8 +51,8 @@ export function drawTactics(
   graphics.beginPath();
   graphics.circle(pxX(layout, CORE_X), pxY(layout, CORE_Y), radius * layout.cell).stroke({
     color: PALETTE.system,
-    width: 1.15,
-    alpha: state.policy.formation === "ring" ? 0.28 : 0.16,
+    width: 1.25,
+    alpha: state.policy.formation === "ring" ? 0.34 : 0.2,
   });
 
   // Per-light tactical fields (rays/leashes clipped via clipLineSegment).

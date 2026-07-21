@@ -45,41 +45,52 @@ export function drawCore(
   const coreTint = tension > 0.55 || phase === "collapse" ? PALETTE.danger : tension > 0.3 ? PALETTE.rescue : PALETTE.core;
   const signalTint = tension > 0.55 || phase === "collapse" ? PALETTE.dangerSoft : PALETTE.signal;
 
-  // Influence field
+  // Influence field — core must win the hierarchy fight vs the grid.
   graphics.beginPath();
-  graphics.circle(x, y, glow * 1.55).fill({ color: signalTint, alpha: 0.07 + health / 4500 });
+  graphics.circle(x, y, glow * 1.65).fill({ color: signalTint, alpha: 0.11 + health / 3200 });
   graphics.beginPath();
-  graphics.circle(x, y, glow * 1.15).fill({ color: coreTint, alpha: 0.06 + tension * 0.05 + phaseTension * 0.04 });
+  graphics.circle(x, y, glow * 1.2).fill({ color: coreTint, alpha: 0.1 + tension * 0.07 + phaseTension * 0.05 });
   graphics.beginPath();
-  graphics.circle(x, y, glow * 0.55).fill({ color: signalTint, alpha: 0.12 + tension * 0.05 });
+  graphics.circle(x, y, glow * 0.62).fill({ color: signalTint, alpha: 0.18 + tension * 0.06 });
 
   // Layered diamond body
   const outer = [
-    x, y - mark * 1.55,
-    x + mark * 1.55, y,
-    x, y + mark * 1.55,
-    x - mark * 1.55, y,
+    x, y - mark * 1.7,
+    x + mark * 1.7, y,
+    x, y + mark * 1.7,
+    x - mark * 1.7, y,
   ];
   const mid = [
-    x, y - mark,
-    x + mark, y,
-    x, y + mark,
-    x - mark, y,
+    x, y - mark * 1.08,
+    x + mark * 1.08, y,
+    x, y + mark * 1.08,
+    x - mark * 1.08, y,
   ];
   const inner = [
-    x, y - mark * 0.42,
-    x + mark * 0.42, y,
-    x, y + mark * 0.42,
-    x - mark * 0.42, y,
+    x, y - mark * 0.48,
+    x + mark * 0.48, y,
+    x, y + mark * 0.48,
+    x - mark * 0.48, y,
   ];
-  strokePoly(graphics, outer, true, { color: signalTint, width: 1.6, alpha: 0.55 + phaseTension });
+  strokePoly(graphics, outer, true, { color: signalTint, width: 1.85, alpha: 0.7 + phaseTension });
   strokePoly(graphics, mid, true, {
     color: PALETTE.core,
-    width: 1.8,
-    alpha: 0.92,
-  }, { color: coreTint, alpha: 0.1 });
+    width: 2.1,
+    alpha: 0.95,
+  }, { color: coreTint, alpha: 0.18 });
   graphics.beginPath();
-  graphics.poly(inner).fill({ color: PALETTE.core, alpha: 0.95 });
+  graphics.poly(inner).fill({ color: PALETTE.core, alpha: 1 });
+  // Crosshair mark
+  strokeSegment(graphics, x - mark * 0.28, y, x + mark * 0.28, y, {
+    color: PALETTE.void,
+    width: 1.2,
+    alpha: 0.55,
+  });
+  strokeSegment(graphics, x, y - mark * 0.28, x, y + mark * 0.28, {
+    color: PALETTE.void,
+    width: 1.2,
+    alpha: 0.55,
+  });
 
   if (tension > 0.35 || phase === "collapse") {
     const crack = mark * (0.9 + tension);

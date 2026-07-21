@@ -11,11 +11,11 @@ export const PALETTE = {
   dangerSoft: 0xff6b86,
   system: 0xa78bfa,
   success: 0x74f7a0,
-  corruptionBody: 0x4a121c,
-  corruptionVein: 0xff6b86,
-  corruptionFrontier: 0xff4d6d,
+  corruptionBody: 0x2e0a12,
+  corruptionVein: 0xff5a78,
+  corruptionFrontier: 0xff3d5c,
 } as const;
 
-export const TRAIL_RENDER_CAP = 28;
-export const ROLE_RADIUS_FACTOR = 0.46;
-export const ROLE_RADIUS_MIN = 9;
+export const TRAIL_RENDER_CAP = 22;
+export const ROLE_RADIUS_FACTOR = 0.5;
+export const ROLE_RADIUS_MIN = 10;

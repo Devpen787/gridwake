@@ -39,9 +39,9 @@ export function drawRoles(
     const active = light.mode === "intercept" || possessed;
 
     graphics.beginPath();
-    graphics.circle(centerX, centerY, radius * (possessed ? 3.4 : active ? 2.6 : 2.2)).fill({
+    graphics.circle(centerX, centerY, radius * (possessed ? 3.6 : active ? 2.8 : 2.35)).fill({
       color: light.color,
-      alpha: possessed ? 0.22 : active ? 0.12 : 0.08,
+      alpha: possessed ? 0.26 : active ? 0.15 : 0.1,
     });
 
     if (possessed) {
