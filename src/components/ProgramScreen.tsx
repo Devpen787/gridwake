@@ -210,9 +210,9 @@ export function ProgramScreen({ initialSource, level = null, onBack, onConfirm }
   const wakeEnabled = !wakeBlocked && compilation.strategy !== null;
   const wakeHint = wakeBlocked
     ? compilation.error ?? "Resolve contradictions before waking the squad."
-    : compilation.interpretation.defaultsUsed.length > 0
-      ? "Defaults applied — review before waking."
-      : "Instinct ready.";
+    : usingDefault
+      ? "Default instinct loaded — review before waking."
+      : "Instinct compiled — review before waking.";
 
   const remaining = 280 - source.length;
 

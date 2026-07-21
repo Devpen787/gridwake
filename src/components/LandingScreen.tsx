@@ -21,7 +21,7 @@ export function LandingScreen({ onSolo, onCampaign, onRecords, onCreateRoom, onJ
 
   return (
     <section className="landing screen" aria-labelledby="gridwake-title">
-      <div className="truth-label">LOCAL PROTOTYPE</div>
+      <div className="truth-label">BUILD WEEK PROTOTYPE</div>
       <div className="landing__center">
         <CoreMark size="large" />
         <div className="landing__copy">

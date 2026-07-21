@@ -74,7 +74,7 @@ Never flat white backgrounds. Never purple-indigo gradient themes.
 ## Agent Prompt Guide
 
 - Brand is GRIDWAKE; tagline allowed: `ONE SENTENCE. ONE LIGHT. ONE SHARED GRID.`
-- Allowed landing CTAs: `SOLO`, `CREATE ROOM`, `JOIN ROOM`, plus `LOCAL PROTOTYPE` label
+- Allowed landing CTAs: `SOLO`, `CREATE ROOM`, `JOIN ROOM`, plus `BUILD WEEK PROTOTYPE` label
 - When designing gameplay chrome, protect determinism messaging — receipts stay honest
 - Prefer mockups that match `design/reference/gameplay-north-star.png` density (bloom, crust, HUD brackets) without adding dashboard clutter
 - If asked to redesign the engine or Instinct compiler, refuse and stay on visual/UX surfaces

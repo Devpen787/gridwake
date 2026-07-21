@@ -290,7 +290,7 @@ export function App() {
         <GameScreen
           initialState={roundState}
           modeLabel={roomState ? `ROOM ${roomState.code} · ${roomState.members.length} LIGHTS` : undefined}
-          authorityLabel={roomState ? verifiedCheckpointTick === null ? "P2P HOST LOG · ORDERED INPUT" : `P2P VERIFIED · T${verifiedCheckpointTick}` : undefined}
+          authorityLabel={roomState ? verifiedCheckpointTick === null ? "P2P SESSION · ORDERED INPUT" : `P2P VERIFIED · T${verifiedCheckpointTick}` : undefined}
           allowPossess={allowPossessionForMode(roomState ? "multiplayer" : "solo")}
           scheduledPulseTick={roomState ? scheduledPulseTick : null}
           onPulseRequest={roomState ? (tick) => roomSession.current?.requestPulse(tick) : undefined}

@@ -1075,6 +1075,8 @@ button:disabled { cursor: not-allowed; }
   .landing { padding-inline: 18px; }
   .landing h1 { letter-spacing: .13em; }
   .landing__copy p { line-height: 1.7; letter-spacing: .18em; }
+  .mode-action { align-items: flex-start; flex-direction: column; gap: 6px; padding-block: 15px; }
+  .mode-action small { width: 100%; line-height: 1.4; text-align: left; white-space: normal; }
   .landing__footer { gap: 15px; font-size: .45rem; }
   .landing__footer { bottom: 52px; }
   .landing__legal { left: 0; right: 0; bottom: 20px; justify-content: center; }
@@ -2012,3 +2014,20 @@ button:disabled { cursor: not-allowed; }
   line-height: 1.5;
 }
 .strategy-field__tip em { color: #8b99a5; font-style: normal; }
+
+@media (max-height: 800px) and (min-width: 961px) {
+  .program { padding-top: 68px; }
+  .program__content--lab { gap: 11px; }
+  .program__content--lab > .core-mark { display: none; }
+  .program__heading h1 { margin-block: 5px 7px; }
+  .program__heading > p:last-child { line-height: 1.4; }
+  .level-briefing { gap: 4px; padding-block: 9px; }
+  .strategy-lab { margin-top: 0; }
+  .strategy-lab__workspace { gap: 10px; padding-block: 13px; }
+  .strategy-field label { margin-bottom: 8px; }
+  .strategy-field textarea { font-size: 1rem; line-height: 1.4; }
+  .strategy-field__tip { font-size: .66rem; line-height: 1.35; }
+  .strategy-examples { gap: 6px; }
+  .strategy-examples button { padding-block: 6px; }
+  .strategy-lab__wake { gap: 7px; padding-top: 7px; }
+}

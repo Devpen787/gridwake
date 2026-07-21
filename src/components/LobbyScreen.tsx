@@ -75,7 +75,7 @@ export function LobbyScreen({ actorId, state, error, onCommand, onExit }: LobbyS
       <header className="screen-header">
         <button className="text-action" type="button" onClick={onExit}>← EXIT</button>
         <span>ROOM / {state.code}</span>
-        <span className="truth-label truth-label--inline">P2P HOST LOG</span>
+        <span className="truth-label truth-label--inline">P2P SESSION</span>
       </header>
 
       <div className="lobby__content">

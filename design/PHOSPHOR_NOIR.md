@@ -69,5 +69,4 @@ Reference: `design/reference/gameplay-north-star.png`
 - `SOLO`
 - `CREATE ROOM`
 - `JOIN ROOM`
-- `LOCAL PROTOTYPE`
-
+- `BUILD WEEK PROTOTYPE`
