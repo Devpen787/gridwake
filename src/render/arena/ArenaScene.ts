@@ -30,19 +30,23 @@ export type ArenaPerfStats = Readonly<{
 
 const POSSESS_CLAIM_MS = 280;
 
+/** Exponential damping rate (per second) for continuous light glide. */
+const GLIDE_RATE = 13;
+
 export class ArenaScene {
   readonly root = new Container();
   private readonly atmosphereLayer = new Graphics();
   private readonly worldLayer = new Graphics();
   private readonly actorLayer = new Graphics();
   private readonly visuals = new Map<string, CellVisual>();
+  private readonly glidePositions = new Map<string, { x: number; y: number }>();
+  private lastFrameMs = 0;
   private impulse: CameraImpulse | null = null;
   private lastPhase = phaseForTick(0);
   private lastHealth = 100;
   private lastPulseUsed: number | null = null;
   private possessedId: string | null = null;
   private claimAtMs = 0;
-  private updatedAtMs = performance.now();
   private frameTimes: number[] = [];
   private lastPerf: ArenaPerfStats = {
     fps: 0,
@@ -58,9 +62,6 @@ export class ArenaScene {
   }
 
   syncState(state: EngineState, nowMs = performance.now()): void {
-    const moved = state.lights.some(
-      (light) => light.x !== light.previousX || light.y !== light.previousY,
-    );
     if (state.possessedLightId !== this.possessedId) {
       this.possessedId = state.possessedLightId;
       if (state.possessedLightId !== null) this.claimAtMs = nowMs;
@@ -91,7 +92,6 @@ export class ArenaScene {
     }
     this.lastPulseUsed = state.pulse.usedAtTick;
     syncCorruptionVisuals(this.visuals, state.corruption, state.tick);
-    if (moved) this.updatedAtMs = nowMs;
   }
 
   render(args: Readonly<{
@@ -106,6 +106,22 @@ export class ArenaScene {
     const { state, viewWidth, viewHeight, frozen, reducedMotion, dpr, nowMs } = args;
     const layout = layoutFor(viewWidth, viewHeight);
     const phase = phaseForTick(state.tick);
+
+    // Continuous exponential glide: every light's render position chases its
+    // engine cell each frame, so motion never stalls between 200ms steps.
+    const dt = this.lastFrameMs === 0 ? 16 : Math.min(100, nowMs - this.lastFrameMs);
+    this.lastFrameMs = nowMs;
+    const blend = reducedMotion || frozen ? 1 : 1 - Math.exp(-(dt / 1000) * GLIDE_RATE);
+    for (const light of state.lights) {
+      const current = this.glidePositions.get(light.id);
+      if (!current) {
+        this.glidePositions.set(light.id, { x: light.x, y: light.y });
+        continue;
+      }
+      current.x += (light.x - current.x) * blend;
+      current.y += (light.y - current.y) * blend;
+    }
+    const animMs = reducedMotion || frozen ? 0 : nowMs;
 
     resetGraphics(this.atmosphereLayer);
     drawAtmosphere(this.atmosphereLayer, layout, phase, frozen);
@@ -125,8 +141,9 @@ export class ArenaScene {
       phase,
       this.visuals,
       reducedMotion || frozen,
+      animMs,
     );
-    drawTrails(this.worldLayer, layout, state);
+    drawTrails(this.worldLayer, layout, state, this.glidePositions);
 
     if (reducedMotion || frozen) {
       this.root.x = 0;
@@ -139,9 +156,6 @@ export class ArenaScene {
       this.root.scale.set(cam.scale);
     }
 
-    const interpolation = reducedMotion || frozen
-      ? 1
-      : Math.min(1, (nowMs - this.updatedAtMs) / (phase === "surge" ? 120 : 150));
     const claimElapsed = nowMs - this.claimAtMs;
     const claimProgress =
       reducedMotion || frozen || this.claimAtMs === 0 || claimElapsed >= POSSESS_CLAIM_MS
@@ -149,8 +163,8 @@ export class ArenaScene {
         : claimElapsed / POSSESS_CLAIM_MS;
 
     resetGraphics(this.actorLayer);
-    drawCore(this.actorLayer, layout, state, phase, frozen);
-    drawRoles(this.actorLayer, layout, state, interpolation, claimProgress);
+    drawCore(this.actorLayer, layout, state, phase, frozen, animMs);
+    drawRoles(this.actorLayer, layout, state, this.glidePositions, claimProgress, animMs);
     const impactStats = drawImpacts(this.actorLayer, layout, state, reducedMotion || frozen);
     drawPulse(this.actorLayer, layout, state);
     drawWarningShimmer(this.actorLayer, layout, state);

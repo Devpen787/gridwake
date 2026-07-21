@@ -24,24 +24,39 @@ export function drawRoles(
   graphics: Graphics,
   layout: ArenaLayout,
   state: EngineState,
-  interpolation: number,
+  positions: ReadonlyMap<string, Readonly<{ x: number; y: number }>>,
   claimProgress: number,
+  animMs: number,
 ): void {
   const clip = arenaClipRect(layout.originX, layout.originY, layout.width, layout.height);
-  for (const light of state.lights) {
-    const eased = light.role === "guardian" ? Math.min(1, interpolation * 0.85 + 0.15) : interpolation;
-    const x = light.previousX + (light.x - light.previousX) * eased;
-    const y = light.previousY + (light.y - light.previousY) * eased;
-    const centerX = pxX(layout, x);
-    const centerY = pxY(layout, y);
+  state.lights.forEach((light, lightIndex) => {
+    const pos = positions.get(light.id) ?? { x: light.x, y: light.y };
+    const centerX = pxX(layout, pos.x);
+    const centerY = pxY(layout, pos.y);
     const radius = roleRadius(layout, light.role);
     const possessed = light.id === state.possessedLightId;
     const active = light.mode === "intercept" || possessed;
+    // Continuous asynchronous breathing so the squad reads as alive at 60fps.
+    const breath = animMs === 0
+      ? 1
+      : 0.86 + 0.14 * Math.sin(animMs * 0.0021 + lightIndex * 2.1);
 
+    // Layered halo — three soft falloff rings instead of one flat disc.
+    const reach = possessed ? 3.9 : active ? 3.2 : 2.7;
     graphics.beginPath();
-    graphics.circle(centerX, centerY, radius * (possessed ? 3.6 : active ? 2.8 : 2.35)).fill({
+    graphics.circle(centerX, centerY, radius * reach * breath).fill({
       color: light.color,
-      alpha: possessed ? 0.26 : active ? 0.15 : 0.1,
+      alpha: (possessed ? 0.1 : active ? 0.06 : 0.045) * breath,
+    });
+    graphics.beginPath();
+    graphics.circle(centerX, centerY, radius * reach * 0.62 * breath).fill({
+      color: light.color,
+      alpha: (possessed ? 0.16 : active ? 0.11 : 0.08) * breath,
+    });
+    graphics.beginPath();
+    graphics.circle(centerX, centerY, radius * reach * 0.36).fill({
+      color: light.color,
+      alpha: possessed ? 0.24 : active ? 0.16 : 0.12,
     });
 
     if (possessed) {
@@ -100,7 +115,7 @@ export function drawRoles(
         width: 1.35,
         alpha: 0.82,
       });
-      continue;
+      return;
     }
 
     if (light.role === "scout") {
@@ -139,7 +154,7 @@ export function drawRoles(
         width: 2.4,
         alpha: 1,
       }, { color: light.color, alpha: 0.18 });
-      continue;
+      return;
     }
 
     // Mender
@@ -165,5 +180,5 @@ export function drawRoles(
         alpha: 0.32,
       });
     }
-  }
+  });
 }

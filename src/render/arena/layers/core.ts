@@ -29,12 +29,16 @@ export function drawCore(
   state: EngineState,
   phase: RoundPhase,
   frozen: boolean,
+  animMs = 0,
 ): void {
   const health = state.health;
   const tension = 1 - health / 100;
   const phaseTension = phase === "collapse" ? 0.22 : phase === "surge" ? 0.1 : 0;
-  const motionRate = frozen ? 0 : phase === "surge" ? 0.2 : phase === "collapse" ? 0.26 : 0.14;
-  const pulse = frozen ? 1 : 1 + Math.sin(state.tick * motionRate) * (0.06 - tension * 0.03 + phaseTension * 0.04);
+  // Continuous 60fps breathing; rate rises with phase pressure.
+  const motionRate = phase === "surge" ? 0.002 : phase === "collapse" ? 0.0026 : 0.0014;
+  const pulse = frozen || animMs === 0
+    ? 1
+    : 1 + Math.sin(animMs * motionRate) * (0.06 - tension * 0.03 + phaseTension * 0.04);
   const sector = highestPressureSector(state);
   const lean = sectorAngle(sector);
   const leanAmt = (phase === "collapse" ? 0.22 : 0.12) * layout.cell * tension;

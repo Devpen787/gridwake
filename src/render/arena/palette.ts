@@ -12,6 +12,7 @@ export const PALETTE = {
   system: 0xa78bfa,
   success: 0x74f7a0,
   corruptionBody: 0x2e0a12,
+  corruptionEmber: 0x8f1f33,
   corruptionVein: 0xff5a78,
   corruptionFrontier: 0xff3d5c,
 } as const;

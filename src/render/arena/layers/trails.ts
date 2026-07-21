@@ -34,6 +34,7 @@ export function drawTrails(
   graphics: Graphics,
   layout: ArenaLayout,
   state: EngineState,
+  positions?: ReadonlyMap<string, Readonly<{ x: number; y: number }>>,
 ): void {
   const clip = arenaClipRect(layout.originX, layout.originY, layout.width, layout.height);
   for (const light of state.lights) {
@@ -71,29 +72,45 @@ export function drawTrails(
         if (nearAlly || nearRepair) boost = 1.4;
         else if (t < 0.6) boost = 0.4;
       }
+      const finalAlpha = Math.min(light.role === "mender" ? 0.55 : 0.72, alpha * boost);
+      // Bright recent segments get a wide soft under-glow so the wake blooms.
+      if (t >= 0.72) {
+        strokeSegment(graphics, clipped.x1, clipped.y1, clipped.x2, clipped.y2, {
+          color,
+          width: width * 3.4,
+          alpha: finalAlpha * 0.28,
+        });
+      }
       strokeSegment(graphics, clipped.x1, clipped.y1, clipped.x2, clipped.y2, {
         color,
         width: width * (0.45 + t * 0.55),
-        alpha: Math.min(light.role === "mender" ? 0.55 : 0.72, alpha * boost),
+        alpha: finalAlpha,
       });
     }
 
-    if (trail.length >= 2) {
-      const from = trail[trail.length - 2]!;
-      const to = trail[trail.length - 1]!;
-      const clipped = clipLineSegment({
-        x1: pxX(layout, from.x),
-        y1: pxY(layout, from.y),
-        x2: pxX(layout, to.x),
-        y2: pxY(layout, to.y),
-      }, clip);
-      if (clipped) {
-        strokeSegment(graphics, clipped.x1, clipped.y1, clipped.x2, clipped.y2, {
-          color: light.role === "mender" ? PALETTE.rescue : light.color,
-          width: width * 1.2,
-          alpha: light.role === "scout" ? 0.58 : light.role === "mender" ? 0.4 : 0.45,
-        });
-      }
+    // Head connector: bridge the newest logged cell to the light's gliding
+    // render position so the trail never detaches from the moving light.
+    const head = trail[trail.length - 1]!;
+    const glide = positions?.get(light.id) ?? head;
+    const headClipped = clipLineSegment({
+      x1: pxX(layout, head.x),
+      y1: pxY(layout, head.y),
+      x2: pxX(layout, glide.x),
+      y2: pxY(layout, glide.y),
+    }, clip);
+    if (headClipped) {
+      const headColor = light.role === "mender" ? PALETTE.rescue : light.color;
+      const headAlpha = light.role === "scout" ? 0.58 : light.role === "mender" ? 0.4 : 0.45;
+      strokeSegment(graphics, headClipped.x1, headClipped.y1, headClipped.x2, headClipped.y2, {
+        color: headColor,
+        width: width * 3.4,
+        alpha: headAlpha * 0.3,
+      });
+      strokeSegment(graphics, headClipped.x1, headClipped.y1, headClipped.x2, headClipped.y2, {
+        color: headColor,
+        width: width * 1.2,
+        alpha: headAlpha,
+      });
     }
   }
 }

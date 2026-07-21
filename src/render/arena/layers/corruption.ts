@@ -48,6 +48,7 @@ export function drawCorruption(
   phase: RoundPhase,
   visuals: ReadonlyMap<string, CellVisual>,
   reducedMotion: boolean,
+  animMs = 0,
 ): void {
   const aggression = frontierAggression(phase);
   const livingKeys = [...visuals.keys()].toSorted();
@@ -88,10 +89,23 @@ export function drawCorruption(
     const pressure = pressureTowardCore(point);
     const shrinkX = die * pressure.x * layout.cell * 0.28;
     const shrinkY = die * pressure.y * layout.cell * 0.28;
-    const bodyAlpha = Math.min(0.94, (onRim ? 0.9 : nearCore ? 0.72 : 0.78) * aggression * life);
+    // Asynchronous per-cell shimmer keeps the mass alive without line noise.
+    const shimmer = animMs === 0
+      ? 1
+      : 0.9 + 0.1 * Math.sin(animMs * 0.0016 + (veinHash(key, "breath") & 63) * 0.35);
+    const bodyAlpha = Math.min(0.94, (onRim ? 0.9 : nearCore ? 0.74 : 0.8) * aggression * life * shimmer);
     graphics
       .rect(left + shrinkX, top + shrinkY, Math.max(1, right - left), Math.max(1, bottom - top))
       .fill({ color: PALETTE.corruptionBody, alpha: bodyAlpha });
+    // Warm ember center so cells read as molten mass, not flat plates.
+    graphics
+      .rect(
+        x + layout.cell * 0.22,
+        y + layout.cell * 0.22,
+        layout.cell * 0.56,
+        layout.cell * 0.56,
+      )
+      .fill({ color: PALETTE.corruptionEmber, alpha: (nearCore ? 0.3 : 0.2) * life * aggression * shimmer });
     // Soft interior wash so sparse cells still feel dense.
     if (!isolated) {
       graphics
@@ -118,7 +132,9 @@ export function drawCorruption(
     ].filter((candidate) => living.has(candidate.key) && candidate.key > key);
     for (const candidate of candidates) {
       const hash = veinHash(key, candidate.key);
-      if ((hash & 15) === 0) continue;
+      // Sparse veins: most links stay implicit so the mass reads as tissue,
+      // not scratched wireframe.
+      if ((hash & 7) < 5) continue;
       const ax = pxX(layout, a.x);
       const ay = pxY(layout, a.y);
       const bx = pxX(layout, candidate.x);
@@ -187,54 +203,28 @@ export function drawCorruption(
     if (!hasNeighbor(living, point.x, point.y, -1, 0)) {
       edges.push({ x1: x, y1: y, x2: x, y2: y + layout.cell, towardCore: pressure.x < 0 });
     }
+    const frontierPulse = animMs === 0
+      ? 1
+      : 0.82 + 0.18 * Math.sin(animMs * 0.0028 + (veinHash(key, "edge") & 31) * 0.4);
     for (const edge of edges) {
       const clipped = clipLineSegment(edge, clip);
       if (!clipped) continue;
-      const alpha = Math.min(1, (edge.towardCore ? 0.95 : 0.45) * aggression * life);
+      const alpha = Math.min(1, (edge.towardCore ? 0.95 : 0.4) * aggression * life * frontierPulse);
+      if (edge.towardCore) {
+        // Soft under-glow beneath the hot frontier line.
+        strokeSegment(graphics, clipped.x1, clipped.y1, clipped.x2, clipped.y2, {
+          color: PALETTE.corruptionFrontier,
+          width: phase === "collapse" ? 6.5 : 5,
+          alpha: 0.16 * aggression * life * frontierPulse,
+        });
+      }
       strokeSegment(graphics, clipped.x1, clipped.y1, clipped.x2, clipped.y2, {
         color: edge.towardCore ? PALETTE.corruptionFrontier : PALETTE.dangerSoft,
         width: edge.towardCore
           ? (phase === "collapse" ? 2.4 : phase === "surge" ? 2.0 : 1.65)
-          : 1.15,
+          : 1.05,
         alpha,
       });
-    }
-  }
-
-  // Rim spray — short triangles peeling off the outer crust (north-star debris).
-  if (!reducedMotion) {
-    let sprayCount = 0;
-    for (const key of livingKeys) {
-      if (sprayCount >= 28) break;
-      const visual = visuals.get(key);
-      if (!visual || visual.dyingAtTick !== null) continue;
-      const point = parseCellKey(key);
-      if (!isRimCell(point, GRID_COLUMNS, GRID_ROWS)) continue;
-      const hash = veinHash(key, "spray");
-      if ((hash & 3) !== 0) continue;
-      const cx = pxX(layout, point.x);
-      const cy = pxY(layout, point.y);
-      const outwardX = point.x < GRID_COLUMNS / 2 ? -1 : 1;
-      const outwardY = point.y < GRID_ROWS / 2 ? -1 : 1;
-      const tipX = cx + outwardX * layout.cell * (0.55 + ((hash >>> 3) & 7) * 0.08);
-      const tipY = cy + outwardY * layout.cell * (0.45 + ((hash >>> 6) & 7) * 0.07);
-      const clippedA = clipLineSegment({ x1: cx, y1: cy, x2: tipX, y2: tipY }, clip);
-      if (!clippedA) continue;
-      strokeSegment(graphics, clippedA.x1, clippedA.y1, clippedA.x2, clippedA.y2, {
-        color: PALETTE.corruptionFrontier,
-        width: 1.25,
-        alpha: 0.55 * aggression,
-      });
-      const wing = layout.cell * 0.22;
-      strokeSegment(
-        graphics,
-        tipX,
-        tipY,
-        tipX - outwardY * wing,
-        tipY + outwardX * wing,
-        { color: PALETTE.dangerSoft, width: 1, alpha: 0.4 * aggression },
-      );
-      sprayCount += 1;
     }
   }
 
