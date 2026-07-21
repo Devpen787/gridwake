@@ -262,7 +262,7 @@ Artifacts:
 Fresh command:
 
 ```bash
-cd /Users/devinsonpena/Documents/Hackathons/gridwake/validation
+cd validation
 python3 gridwake_reference.py --write-artifacts --seed-count 200
 python3 -m unittest -v test_gridwake_reference.py
 ```
