@@ -40,5 +40,6 @@ GRIDWAKE is a deterministic strategy game where your controller is a sentence. A
 The take is fully scripted and reproducible (same seed + same sentence ⇒ same round):
 
 ```bash
-node scratchpad/demo.cjs   # see session scratchpad; drives production and records 1920×1080 webm
+# Requires playwright resolvable from the repo (npx playwright install chromium once).
+node demo/record-demo.cjs   # drives production, records 1920×1080 webm into demo/out/
 ```
