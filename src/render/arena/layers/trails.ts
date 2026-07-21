@@ -49,7 +49,6 @@ export function drawTrails(
       const from = trail[index - 1]!;
       const to = trail[index]!;
       const t = index / (trail.length - 1);
-      if (light.role === "scout" && index % 2 === 0) continue;
       const clipped = clipLineSegment({
         x1: pxX(layout, from.x),
         y1: pxY(layout, from.y),
@@ -77,8 +76,8 @@ export function drawTrails(
       if (t >= 0.72) {
         strokeSegment(graphics, clipped.x1, clipped.y1, clipped.x2, clipped.y2, {
           color,
-          width: width * 3.4,
-          alpha: finalAlpha * 0.28,
+          width: width * 2.4,
+          alpha: finalAlpha * 0.22,
         });
       }
       strokeSegment(graphics, clipped.x1, clipped.y1, clipped.x2, clipped.y2, {
@@ -103,8 +102,8 @@ export function drawTrails(
       const headAlpha = light.role === "scout" ? 0.58 : light.role === "mender" ? 0.4 : 0.45;
       strokeSegment(graphics, headClipped.x1, headClipped.y1, headClipped.x2, headClipped.y2, {
         color: headColor,
-        width: width * 3.4,
-        alpha: headAlpha * 0.3,
+        width: width * 2.4,
+        alpha: headAlpha * 0.24,
       });
       strokeSegment(graphics, headClipped.x1, headClipped.y1, headClipped.x2, headClipped.y2, {
         color: headColor,

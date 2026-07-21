@@ -40,31 +40,31 @@ export function drawTactics(
     if (clipped) {
       strokeSegment(graphics, clipped.x1, clipped.y1, clipped.x2, clipped.y2, {
         color: PALETTE.dangerSoft,
-        width: 1.45,
-        alpha: 0.34,
+        width: 1.45 * layout.stroke,
+        alpha: 0.3,
       });
     }
   }
 
-  // Guardian defended region from engagement radius.
+  // Guardian defended region from engagement radius — soft band, not a wire.
   const radius = Math.max(2, state.policy.engagementRadius);
   graphics.beginPath();
   graphics.circle(pxX(layout, CORE_X), pxY(layout, CORE_Y), radius * layout.cell).stroke({
     color: PALETTE.system,
-    width: 1.25,
-    alpha: state.policy.formation === "ring" ? 0.34 : 0.2,
+    width: 3.2 * layout.stroke,
+    alpha: state.policy.formation === "ring" ? 0.14 : 0.09,
   });
 
-  // Per-light tactical fields (rays/leashes clipped via clipLineSegment).
+  // Manual possession field only — intercept rings stack noise on the halos.
   for (const light of state.lights) {
-    if (light.mode !== "intercept" && light.mode !== "manual") continue;
+    if (light.mode !== "manual") continue;
     const x = pxX(layout, light.x);
     const y = pxY(layout, light.y);
     graphics.beginPath();
-    graphics.circle(x, y, layout.cell * (light.mode === "manual" ? 2.3 : 1.75)).stroke({
+    graphics.circle(x, y, layout.cell * 2.3).stroke({
       color: light.color,
-      width: 1.05,
-      alpha: light.mode === "manual" ? 0.55 : 0.4,
+      width: 1.05 * layout.stroke,
+      alpha: 0.55,
     });
   }
 
@@ -79,8 +79,8 @@ export function drawTactics(
     graphics.beginPath();
     graphics.circle(pxX(layout, center.x), pxY(layout, center.y), layout.cell * 1.1).stroke({
       color: PALETTE.signal,
-      width: 1.3,
-      alpha: 0.45,
+      width: 1.3 * layout.stroke,
+      alpha: 0.4,
     });
   }
 }

@@ -153,8 +153,8 @@ export function drawCorruption(
         my - offset * 0.35,
         {
           color: PALETTE.corruptionVein,
-          width: phase === "collapse" ? 1.55 : 1.2,
-          alpha: phase === "probe" ? 0.38 : 0.58,
+          width: (phase === "collapse" ? 1.55 : 1.2) * layout.stroke,
+          alpha: phase === "probe" ? 0.34 : 0.5,
         },
       );
       strokeSegment(
@@ -165,8 +165,8 @@ export function drawCorruption(
         clipped.y2,
         {
           color: PALETTE.corruptionVein,
-          width: phase === "collapse" ? 1.55 : 1.2,
-          alpha: phase === "probe" ? 0.38 : 0.58,
+          width: (phase === "collapse" ? 1.55 : 1.2) * layout.stroke,
+          alpha: phase === "probe" ? 0.34 : 0.5,
         },
       );
     }
@@ -214,48 +214,18 @@ export function drawCorruption(
         // Soft under-glow beneath the hot frontier line.
         strokeSegment(graphics, clipped.x1, clipped.y1, clipped.x2, clipped.y2, {
           color: PALETTE.corruptionFrontier,
-          width: phase === "collapse" ? 6.5 : 5,
+          width: (phase === "collapse" ? 6.5 : 5) * layout.stroke,
           alpha: 0.16 * aggression * life * frontierPulse,
         });
       }
       strokeSegment(graphics, clipped.x1, clipped.y1, clipped.x2, clipped.y2, {
         color: edge.towardCore ? PALETTE.corruptionFrontier : PALETTE.dangerSoft,
-        width: edge.towardCore
+        width: (edge.towardCore
           ? (phase === "collapse" ? 2.4 : phase === "surge" ? 2.0 : 1.65)
-          : 1.05,
+          : 1.05) * layout.stroke,
         alpha,
       });
     }
   }
 
-  // Longer clipped pressure bridges from active frontier toward core.
-  if (!reducedMotion && phase !== "probe") {
-    const bridges = livingKeys
-      .filter((key) => {
-        const visual = visuals.get(key);
-        if (!visual || visual.dyingAtTick !== null) return false;
-        const point = parseCellKey(key);
-        return isRimCell(point, GRID_COLUMNS, GRID_ROWS) && coreDistance(point) > 4;
-      })
-      .slice(0, 12);
-    for (const key of bridges) {
-      const point = parseCellKey(key);
-      const pressure = pressureTowardCore(point);
-      const cx = pxX(layout, point.x);
-      const cy = pxY(layout, point.y);
-      const reach = layout.cell * (2.4 + aggression * 1.6);
-      const clipped = clipLineSegment({
-        x1: cx,
-        y1: cy,
-        x2: cx + pressure.x * reach,
-        y2: cy + pressure.y * reach,
-      }, clip);
-      if (!clipped) continue;
-      strokeSegment(graphics, clipped.x1, clipped.y1, clipped.x2, clipped.y2, {
-        color: PALETTE.dangerSoft,
-        width: 1.15,
-        alpha: 0.38 * aggression,
-      });
-    }
-  }
 }

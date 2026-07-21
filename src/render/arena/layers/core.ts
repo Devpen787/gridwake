@@ -76,10 +76,10 @@ export function drawCore(
     x, y + mark * 0.48,
     x - mark * 0.48, y,
   ];
-  strokePoly(graphics, outer, true, { color: signalTint, width: 1.85, alpha: 0.7 + phaseTension });
+  strokePoly(graphics, outer, true, { color: signalTint, width: 1.85 * layout.stroke, alpha: 0.7 + phaseTension });
   strokePoly(graphics, mid, true, {
     color: PALETTE.core,
-    width: 2.1,
+    width: 2.1 * layout.stroke,
     alpha: 0.95,
   }, { color: coreTint, alpha: 0.18 });
   graphics.beginPath();
@@ -120,7 +120,7 @@ export function drawCore(
     graphics.beginPath();
     graphics.circle(x, y, glow * 0.72).stroke({
       color: PALETTE.signal,
-      width: 1.1,
+      width: 1.1 * layout.stroke,
       alpha: 0.22 + (phase === "collapse" ? 0.18 : 0),
     });
   }

@@ -8,6 +8,8 @@ export type ArenaLayout = Readonly<{
   height: number;
   viewWidth: number;
   viewHeight: number;
+  /** Stroke-width multiplier so lines stay substantial on large displays. */
+  stroke: number;
 }>;
 
 export function layoutFor(viewWidth: number, viewHeight: number): ArenaLayout {
@@ -22,6 +24,7 @@ export function layoutFor(viewWidth: number, viewHeight: number): ArenaLayout {
   const height = cell * GRID_ROWS;
   return {
     cell,
+    stroke: Math.max(1, Math.min(2.4, cell / 42)),
     width,
     height,
     originX: (viewWidth - width) / 2,

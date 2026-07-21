@@ -59,22 +59,23 @@ export function drawRoles(
       alpha: possessed ? 0.24 : active ? 0.16 : 0.12,
     });
 
+    const sw = layout.stroke;
+
     if (possessed) {
       const claimBoost = claimProgress > 0 ? (1 - claimProgress) * 0.55 : 0;
       graphics.beginPath();
       graphics.circle(centerX, centerY, radius * (1.9 + claimBoost * 1.3)).stroke({
         color: PALETTE.core,
-        width: 1.8 + claimBoost * 2,
+        width: (1.8 + claimBoost * 2) * sw,
         alpha: 0.85 + claimBoost,
       });
     }
 
     if (light.role === "guardian") {
+      // Single soft protective field instead of stacked wire rings.
       const lattice = layout.cell * (light.mode === "formation" || manhattan(light, CORE_POINT) <= 6 ? 2.4 : 1.55);
       graphics.beginPath();
-      graphics.circle(centerX, centerY, lattice).stroke({ color: PALETTE.system, width: 1.15, alpha: 0.34 });
-      graphics.beginPath();
-      graphics.circle(centerX, centerY, lattice * 0.72).stroke({ color: PALETTE.core, width: 0.9, alpha: 0.22 });
+      graphics.circle(centerX, centerY, lattice).fill({ color: PALETTE.system, alpha: 0.05 });
       // Shield arc as discrete poly — never use Graphics.arc(), which continues
       // from the previous path cursor and draws a full-screen diagonal from (0,0).
       const shieldRadius = radius * 2.15;
@@ -90,7 +91,7 @@ export function drawRoles(
       }
       strokePoly(graphics, shieldPoints, false, {
         color: PALETTE.core,
-        width: 1.6,
+        width: 1.6 * sw,
         alpha: active ? 0.65 : 0.4,
       });
       const outer = [
@@ -107,12 +108,12 @@ export function drawRoles(
       ];
       strokePoly(graphics, outer, true, {
         color: light.color,
-        width: 2.4,
+        width: 2.4 * sw,
         alpha: 1,
       }, { color: PALETTE.system, alpha: 0.12 });
       strokePoly(graphics, inner, true, {
         color: PALETTE.core,
-        width: 1.35,
+        width: 1.35 * sw,
         alpha: 0.82,
       });
       return;
@@ -138,30 +139,30 @@ export function drawRoles(
         if (clipped) {
           strokeSegment(graphics, clipped.x1, clipped.y1, clipped.x2, clipped.y2, {
             color: PALETTE.signal,
-            width: 1.25,
+            width: 1.25 * sw,
             alpha: 0.58,
           });
         }
         graphics.beginPath();
         graphics.circle(pxX(layout, light.target.x), pxY(layout, light.target.y), layout.cell * 0.35).stroke({
           color: PALETTE.signal,
-          width: 1.1,
+          width: 1.1 * sw,
           alpha: 0.55,
         });
       }
       strokePoly(graphics, [tipX, tipY, leftX, leftY, rightX, rightY], true, {
         color: light.color,
-        width: 2.4,
+        width: 2.4 * sw,
         alpha: 1,
-      }, { color: light.color, alpha: 0.18 });
+      }, { color: light.color, alpha: 0.22 });
       return;
     }
 
     // Mender
     graphics.beginPath();
-    graphics.circle(centerX, centerY, radius).stroke({ color: light.color, width: 2.4, alpha: 1 });
+    graphics.circle(centerX, centerY, radius).stroke({ color: light.color, width: 2.4 * sw, alpha: 1 });
     graphics.beginPath();
-    graphics.circle(centerX, centerY, radius * 0.58).stroke({ color: PALETTE.rescue, width: 1.35, alpha: 0.78 });
+    graphics.circle(centerX, centerY, radius * 0.58).stroke({ color: PALETTE.rescue, width: 1.35 * sw, alpha: 0.78 });
     graphics.beginPath();
     graphics.circle(centerX, centerY, radius * 0.28).fill({ color: light.color, alpha: 0.95 });
     for (const other of state.lights) {
@@ -176,7 +177,7 @@ export function drawRoles(
       if (!clipped) continue;
       strokeSegment(graphics, clipped.x1, clipped.y1, clipped.x2, clipped.y2, {
         color: PALETTE.rescue,
-        width: 1.05,
+        width: 1.05 * sw,
         alpha: 0.32,
       });
     }
