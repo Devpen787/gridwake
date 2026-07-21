@@ -15,24 +15,50 @@ export { ROLE_DESCRIPTIONS, ROLE_LABELS };
 export const DEFAULT_STRATEGY =
   "Circle the light in an organic ring. Send two units to intercept anything that enters the inner grid, then return without chasing.";
 
-export const STRATEGY_EXAMPLES = [
+export type StrategyTier = "starter" | "advanced" | "expert";
+
+export const STRATEGY_EXAMPLES: ReadonlyArray<Readonly<{ label: string; source: string; tier: StrategyTier }>> = [
   {
     label: "RING KEEPER",
+    tier: "starter",
     source: "Guard the core in a tight disciplined ring. Send two units within 25% and do not chase. Pulse below 45% health.",
   },
   {
     label: "EDGE HUNTER",
+    tier: "starter",
     source: "Spread wide, scout the weakest edges aggressively with all three units, and move unpredictably.",
   },
   {
     label: "CHAIN REPAIR",
+    tier: "advanced",
     source: "Link together organically, reinforce every ally trail, and send one unit to nearby threats before returning.",
   },
   {
     label: "TEN PERCENT RING",
+    tier: "advanced",
     source: "Go in circles around the light and only attack anything within 10%; send two and do not chase.",
   },
-] as const;
+  {
+    label: "DIVIDED WATCH",
+    tier: "advanced",
+    source: "Guardian holds the core in a tight ring. Scout hunts the most crowded edge aggressively, then returns. Mender repairs shared trails.",
+  },
+  {
+    label: "COUNTERPUNCH",
+    tier: "expert",
+    source: "Spread wide and intercept the closest breach with two units, but do not chase. If the core falls below 50%, regroup close to the light.",
+  },
+  {
+    label: "PHASE WARDEN",
+    tier: "expert",
+    source: "Hold a tight ring during probe. During surge, send two units to the most urgent breach. During collapse, regroup close to the light. Pulse below 55%.",
+  },
+  {
+    label: "LAST STAND",
+    tier: "expert",
+    source: "Cautiously defend the core in a balanced triangle. Send one unit to nearby threats and do not chase. Pulse below 35% health.",
+  },
+];
 
 export type DialProvenance = "stated" | "default" | "clamped";
 

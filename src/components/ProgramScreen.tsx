@@ -5,6 +5,7 @@ import {
   compileStrategyWithReading,
 } from "../game/strategy";
 import { explainInterpretation } from "../game/instinct";
+import type { CampaignLevel } from "../game/campaign";
 import type { CompiledStrategy } from "../game/types";
 import type { DirectiveEvidence, InterpretationWarning, SourceSpan, StrategyInterpretation } from "../game/instinct/types";
 import { CoreMark } from "./CoreMark";
@@ -12,6 +13,7 @@ import { StrategyPreview, type StrategyPreviewHighlight } from "./StrategyPrevie
 
 type ProgramScreenProps = Readonly<{
   initialSource: string;
+  level?: CampaignLevel | null;
   onBack: () => void;
   onConfirm: (strategy: CompiledStrategy) => void;
 }>;
@@ -139,7 +141,7 @@ function InterpretationPanel({
   );
 }
 
-export function ProgramScreen({ initialSource, onBack, onConfirm }: ProgramScreenProps) {
+export function ProgramScreen({ initialSource, level = null, onBack, onConfirm }: ProgramScreenProps) {
   const [source, setSource] = useState(initialSource);
   const [highlight, setHighlight] = useState<StrategyPreviewHighlight>(null);
   const [shouldAutoFocus] = useState(
@@ -182,9 +184,22 @@ export function ProgramScreen({ initialSource, onBack, onConfirm }: ProgramScree
         <CoreMark size="small" />
         <div className="program__heading">
           <p className="step-index">01 / STRATEGY LABORATORY</p>
-          <h1 id="program-title">WORDSMITH YOUR INSTINCT.</h1>
-          <p>One sentence. GRIDWAKE shows what it understood before you wake the squad.</p>
+          <h1 id="program-title">{level ? level.name : "WORDSMITH YOUR INSTINCT."}</h1>
+          <p>
+            {level
+              ? level.brief
+              : "One sentence. GRIDWAKE shows what it understood before you wake the squad."}
+          </p>
         </div>
+
+        {level ? (
+          <div className="level-briefing" role="note">
+            <span className="level-briefing__tag">
+              GRID {String(level.index + 1).padStart(2, "0")} · {level.seconds}S · PAR {level.parScore}
+            </span>
+            <p>{level.hint}</p>
+          </div>
+        ) : null}
 
         <div className="strategy-lab">
           <div className="strategy-lab__workspace">
@@ -214,6 +229,7 @@ export function ProgramScreen({ initialSource, onBack, onConfirm }: ProgramScree
                   <button
                     key={example.label}
                     type="button"
+                    className={`strategy-example strategy-example--${example.tier}`}
                     aria-pressed={active}
                     onClick={() => setSource(example.source)}
                     onMouseEnter={() => setHighlight({ kind: "formation" })}
@@ -221,10 +237,16 @@ export function ProgramScreen({ initialSource, onBack, onConfirm }: ProgramScree
                     onFocus={() => setHighlight({ kind: "formation" })}
                     onBlur={() => setHighlight(null)}
                   >
+                    <i className={`strategy-example__tier strategy-example__tier--${example.tier}`} aria-hidden="true" />
                     {example.label}
                   </button>
                 );
               })}
+              <span className="strategy-examples__legend" aria-hidden="true">
+                <em className="strategy-example__tier strategy-example__tier--starter" /> STARTER
+                <em className="strategy-example__tier strategy-example__tier--advanced" /> ADVANCED
+                <em className="strategy-example__tier strategy-example__tier--expert" /> EXPERT
+              </span>
             </div>
 
             <div className="strategy-lab__wake">

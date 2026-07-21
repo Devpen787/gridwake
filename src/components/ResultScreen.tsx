@@ -8,6 +8,8 @@ import {
   formatSignedDelta,
 } from "../game/comparison";
 import { createReceipt } from "../game/engine";
+import { nextLevel, starsFor, type CampaignLevel } from "../game/campaign";
+import { loadRounds, recordRound, type RecordOutcome } from "../game/records";
 import type {
   AttributionEntry,
   AttributionSource,
@@ -22,6 +24,8 @@ type ResultScreenProps = Readonly<{
   state: EngineState;
   strategy: CompiledStrategy;
   previousReceipt?: RoundReceipt | null;
+  level?: CampaignLevel | null;
+  onNextLevel?: () => void;
   onTuneSameGrid: () => void;
   onNewGrid: () => void;
   onLeave: () => void;
@@ -157,6 +161,8 @@ export function ResultScreen({
   state,
   strategy,
   previousReceipt = null,
+  level = null,
+  onNextLevel,
   onTuneSameGrid,
   onNewGrid,
   onLeave,
@@ -169,6 +175,17 @@ export function ResultScreen({
   const [copyState, setCopyState] = useState<CopyState>("idle");
   const [traceOpen, setTraceOpen] = useState(false);
   const resultSoundPlayed = useRef(false);
+  const archived = useRef<RecordOutcome | null>(null);
+  if (archived.current === null) {
+    archived.current = recordRound(receipt, {
+      source: strategy.source,
+      levelId: level?.id ?? null,
+      mode: multiplayer ? "room" : "solo",
+    });
+  }
+  const recordOutcome = archived.current;
+  const stars = level ? starsFor(level, recordOutcome.record) : 0;
+  const followingLevel = level && held ? nextLevel(loadRounds(), level) : null;
   const deltas = previousReceipt
     ? compareReceipts(receipt, previousReceipt)
     : [];
@@ -199,8 +216,13 @@ export function ResultScreen({
       <AudioToggle />
       <div className="truth-label">{truthLabel}</div>
       <div className="result__center">
-        <p className="step-index">ROUND RESOLVED</p>
+        <p className="step-index">{level ? `GRID ${String(level.index + 1).padStart(2, "0")} · ${level.name}` : "ROUND RESOLVED"}</p>
         <h1 id="result-title">{held ? "THE GRID HELD" : "THE CORE WENT DARK"}</h1>
+        {recordOutcome.isPersonalBest ? (
+          <p className="result__pb" role="status">NEW PERSONAL BEST · {receipt.gradeScore}
+            {recordOutcome.previousBestScore !== null ? ` (WAS ${recordOutcome.previousBestScore})` : ""}
+          </p>
+        ) : null}
         <p className="result__summary">
           {held
             ? resultSummary(
@@ -216,7 +238,9 @@ export function ResultScreen({
         <div className="performance-card" aria-label="Round performance">
           <div className="performance-card__grade">
             <span className="performance-card__grade-label">GRADE</span>
-            <strong className="performance-card__grade-letter">{receipt.grade}</strong>
+            <strong className={`performance-card__grade-letter performance-card__grade-letter--${receipt.grade.toLowerCase()}`}>
+              {receipt.grade}
+            </strong>
             <div className="performance-card__score">
               <span>{receipt.gradeScore} / 100</span>
               <div className="performance-card__score-track" aria-hidden="true">
@@ -257,6 +281,29 @@ export function ResultScreen({
             {recommendationFor(state, strategy)}
           </p>
         </div>
+
+        {level ? (
+          <section className="level-verdict" aria-label="Campaign grid verdict">
+            <div className="level-verdict__par">
+              <span>PAR {level.parScore}</span>
+              <strong className={receipt.gradeScore >= level.parScore && held ? "level-verdict__delta--over" : "level-verdict__delta--under"}>
+                {receipt.gradeScore >= level.parScore ? `PAR BEATEN +${receipt.gradeScore - level.parScore}` : `${receipt.gradeScore - level.parScore} UNDER PAR`}
+              </strong>
+            </div>
+            <span className="level-verdict__stars" aria-label={`${stars} of 3 stars`}>
+              {[0, 1, 2].map((slot) => (
+                <i key={slot} className={slot < stars ? "level-verdict__star level-verdict__star--lit" : "level-verdict__star"} />
+              ))}
+            </span>
+          </section>
+        ) : null}
+
+        <section className="career-strip" aria-label="Career stats">
+          <span className="career-strip__rank">{recordOutcome.career.rank}</span>
+          <span>ROUND {recordOutcome.career.rounds}</span>
+          <span>STREAK {recordOutcome.career.currentStreak}</span>
+          <span>BEST {recordOutcome.career.bestScore}</span>
+        </section>
 
         <section className="causal-trace">
           <button
@@ -318,14 +365,19 @@ export function ResultScreen({
         </footer>
 
         <div className="result__actions">
+          {followingLevel && onNextLevel ? (
+            <button className="primary-action" type="button" onClick={onNextLevel}>
+              NEXT GRID · {followingLevel.name} →
+            </button>
+          ) : null}
           {multiplayer ? null : (
-            <button className="primary-action" type="button" onClick={onTuneSameGrid}>
+            <button className={followingLevel ? "secondary-action" : "primary-action"} type="button" onClick={onTuneSameGrid}>
               TUNE SAME GRID
             </button>
           )}
           {multiplayer ? null : (
             <button className="secondary-action" type="button" onClick={onNewGrid}>
-              NEW GRID
+              {level ? "GRID LADDER" : "NEW GRID"}
             </button>
           )}
           <button

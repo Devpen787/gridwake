@@ -6,8 +6,12 @@ import { LobbyScreen } from "./components/LobbyScreen";
 import { ProgramScreen } from "./components/ProgramScreen";
 import { ResultScreen } from "./components/ResultScreen";
 import { RoomEntryScreen } from "./components/RoomEntryScreen";
+import { CampaignScreen } from "./components/CampaignScreen";
+import { RecordsScreen } from "./components/RecordsScreen";
 import { createInitialState, createReceipt } from "./game/engine";
 import { allowPossessionForMode } from "./game/possession";
+import { nextLevel, type CampaignLevel } from "./game/campaign";
+import { loadRounds } from "./game/records";
 import type { CompiledStrategy, EngineState, RoundReceipt } from "./game/types";
 import { createRoom, normalizeRoomCode, roomCodeFromEntropy } from "./multiplayer/room";
 import type { PeerRoomCommand, PeerRoomSession } from "./multiplayer/peerTransport";
@@ -16,7 +20,7 @@ import { CoreMark } from "./components/CoreMark";
 import { PolicyScreen, type PolicyKind } from "./components/PolicyScreen";
 import { clearRoomRecovery, readRoomRecovery, saveRoomRecovery } from "./multiplayer/recovery";
 
-type AppStage = "landing" | "room-entry" | "lobby" | "program" | "awakening" | "playing" | "result" | "policy";
+type AppStage = "landing" | "campaign" | "records" | "room-entry" | "lobby" | "program" | "awakening" | "playing" | "result" | "policy";
 
 export function seedForRound(roundNumber: number): number {
   return (0x9e3779b9 + Math.imul(roundNumber, 7_919)) >>> 0;
@@ -35,6 +39,7 @@ export function App() {
   const [roomError, setRoomError] = useState<string | null>(null);
   const [scheduledPulseTick, setScheduledPulseTick] = useState<number | null>(null);
   const [verifiedCheckpointTick, setVerifiedCheckpointTick] = useState<number | null>(null);
+  const [activeLevel, setActiveLevel] = useState<CampaignLevel | null>(null);
   const [policyKind, setPolicyKind] = useState<PolicyKind>("terms");
   const [policyReturnStage, setPolicyReturnStage] = useState<AppStage>("landing");
   const roomSession = useRef<PeerRoomSession | null>(null);
@@ -50,7 +55,18 @@ export function App() {
     setStage("room-entry");
   }, [initialRoomCode]);
 
-  const beginProgram = useCallback(() => setStage("program"), []);
+  const beginProgram = useCallback(() => {
+    setActiveLevel(null);
+    setStage("program");
+  }, []);
+  const beginCampaign = useCallback(() => setStage("campaign"), []);
+  const beginRecords = useCallback(() => setStage("records"), []);
+  const selectLevel = useCallback((level: CampaignLevel) => {
+    setActiveLevel(level);
+    setPreviousReceipt(null);
+    setRoundSeedOverride(null);
+    setStage("program");
+  }, []);
   const beginCreateRoom = useCallback(() => {
     setRoomMode("create");
     setRoomError(null);
@@ -76,9 +92,12 @@ export function App() {
 
   const launch = useCallback(() => {
     if (!strategy) return;
-    setRoundState(createInitialState(roundSeedOverride ?? seedForRound(roundNumber), strategy));
+    const seed = roundSeedOverride ?? activeLevel?.seed ?? seedForRound(roundNumber);
+    setRoundState(activeLevel && roundSeedOverride === null
+      ? createInitialState(seed, strategy, activeLevel.maxTicks)
+      : createInitialState(seed, strategy));
     setStage("playing");
-  }, [roundNumber, roundSeedOverride, strategy]);
+  }, [activeLevel, roundNumber, roundSeedOverride, strategy]);
 
   const resolveRound = useCallback((resolved: EngineState) => {
     setRoundState(resolved);
@@ -87,10 +106,27 @@ export function App() {
 
   const newGrid = useCallback(() => {
     setPreviousReceipt(null);
-    setRoundNumber((current) => current + 1);
     setRoundState(null);
+    if (activeLevel) {
+      setStage("campaign");
+      return;
+    }
+    setRoundNumber((current) => current + 1);
     setStage("program");
-  }, []);
+  }, [activeLevel]);
+
+  const advanceToNextLevel = useCallback(() => {
+    if (!activeLevel) return;
+    const following = nextLevel(loadRounds(), activeLevel);
+    setPreviousReceipt(null);
+    setRoundState(null);
+    if (!following) {
+      setStage("campaign");
+      return;
+    }
+    setActiveLevel(following);
+    setStage("program");
+  }, [activeLevel]);
 
   const tuneSameGrid = useCallback(() => {
     if (roundState?.ended && strategy) {
@@ -108,6 +144,7 @@ export function App() {
     setRoundState(null);
     setPreviousReceipt(null);
     setRoundSeedOverride(null);
+    setActiveLevel(null);
     setRoomState(null);
     setRoomActorId(null);
     setRoomError(null);
@@ -194,7 +231,20 @@ export function App() {
     <main className={`app app--${stage}`} aria-label={backgroundLabel}>
       <div className="ambient-grid" aria-hidden="true" />
       {stage === "landing" ? (
-        <LandingScreen onSolo={beginProgram} onCreateRoom={beginCreateRoom} onJoinRoom={beginJoinRoom} onPolicy={openPolicy} />
+        <LandingScreen
+          onSolo={beginProgram}
+          onCampaign={beginCampaign}
+          onRecords={beginRecords}
+          onCreateRoom={beginCreateRoom}
+          onJoinRoom={beginJoinRoom}
+          onPolicy={openPolicy}
+        />
+      ) : null}
+      {stage === "campaign" ? (
+        <CampaignScreen onBack={returnHome} onSelect={selectLevel} />
+      ) : null}
+      {stage === "records" ? (
+        <RecordsScreen onBack={returnHome} />
       ) : null}
       {stage === "room-entry" ? (
         <RoomEntryScreen
@@ -228,7 +278,8 @@ export function App() {
       {stage === "program" ? (
         <ProgramScreen
           initialSource={strategy?.source ?? ""}
-          onBack={returnHome}
+          level={activeLevel}
+          onBack={activeLevel ? beginCampaign : returnHome}
           onConfirm={awaken}
         />
       ) : null}
@@ -253,6 +304,8 @@ export function App() {
           state={roundState}
           strategy={strategy}
           previousReceipt={roomState ? null : previousReceipt}
+          level={roomState ? null : activeLevel}
+          onNextLevel={advanceToNextLevel}
           onLeave={returnHome}
           onNewGrid={newGrid}
           onTuneSameGrid={tuneSameGrid}
