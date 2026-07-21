@@ -1,3 +1,5 @@
+import { GRID_COLUMNS } from "../game/types";
+
 export type GameSound =
   | "ui-confirm"
   | "possess"
@@ -10,6 +12,11 @@ export type GameSound =
   | "phase-collapse"
   | "round-held"
   | "round-lost";
+
+export type PlaySoundOptions = Readonly<{
+  /** Grid x coordinate — panned horizontally when provided. */
+  gridX?: number;
+}>;
 
 const MUTE_STORAGE_KEY = "gridwake.audio.muted.v1";
 const SILENCE = 0.0001;
@@ -43,10 +50,21 @@ type ToneSpec = Readonly<{
 
 type AmbiencePhase = "probe" | "surge" | "collapse" | "result";
 
+function gridPan(gridX: number): number {
+  const normalized = gridX / Math.max(1, GRID_COLUMNS - 1);
+  return clamp(normalized * 2 - 1, -1, 1);
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
 class AudioDirector {
   private context: AudioContext | null = null;
   private master: GainNode | null = null;
-  private ambienceGain: GainNode | null = null;
+  private ambienceBus: GainNode | null = null;
+  private effectsBus: GainNode | null = null;
+  private ambienceLevel: GainNode | null = null;
   private ambienceFilter: BiquadFilterNode | null = null;
   private ambienceOsc: OscillatorNode | null = null;
   private ambienceNoise: AudioBufferSourceNode | null = null;
@@ -84,7 +102,7 @@ class AudioDirector {
     }
   }
 
-  play(sound: GameSound): void {
+  play(sound: GameSound, options?: PlaySoundOptions): void {
     if (this.muted) return;
 
     // React StrictMode can replay mount effects in development. Collapse only
@@ -97,76 +115,78 @@ class AudioDirector {
     const context = this.ensureGraph();
     if (!context || context.state !== "running") return;
 
+    const pan = options?.gridX === undefined ? undefined : gridPan(options.gridX);
+
     switch (sound) {
       case "ui-confirm":
         this.sequence([
           { frequency: 440, duration: 0.08, type: "triangle", gain: 0.055 },
           { frequency: 660, duration: 0.11, offset: 0.055, type: "triangle", gain: 0.05 },
-        ]);
+        ], pan);
         break;
       case "possess":
         this.sequence([
           { frequency: 620, duration: 0.12, type: "sine", gain: 0.06 },
           { frequency: 930, duration: 0.18, offset: 0.06, type: "sine", gain: 0.045 },
-        ]);
+        ], pan);
         break;
       case "intercept":
         this.sequence([
           { frequency: 980, duration: 0.055, type: "square", gain: 0.025 },
           { frequency: 720, duration: 0.09, offset: 0.025, type: "triangle", gain: 0.035 },
-        ]);
+        ], pan);
         break;
       case "repair":
         this.sequence([
           { frequency: 392, duration: 0.13, type: "triangle", gain: 0.04 },
           { frequency: 523.25, duration: 0.18, offset: 0.075, type: "sine", gain: 0.04 },
-        ]);
+        ], pan);
         break;
       case "damage":
         this.sequence([
           { frequency: 115, duration: 0.18, type: "sawtooth", gain: 0.065, detune: -14 },
           { frequency: 82, duration: 0.24, offset: 0.025, type: "triangle", gain: 0.05 },
-        ]);
+        ], pan);
         break;
       case "warning":
         this.sequence([
           { frequency: 220, duration: 0.09, type: "square", gain: 0.03 },
           { frequency: 220, duration: 0.09, offset: 0.15, type: "square", gain: 0.025 },
-        ]);
+        ], pan);
         break;
       case "pulse":
         this.sequence([
           { frequency: 130.81, duration: 0.48, type: "sine", gain: 0.065 },
           { frequency: 261.63, duration: 0.42, offset: 0.03, type: "triangle", gain: 0.05 },
           { frequency: 523.25, duration: 0.36, offset: 0.07, type: "sine", gain: 0.04 },
-        ]);
+        ], pan);
         break;
       case "phase-surge":
         this.sequence([
           { frequency: 185, duration: 0.16, type: "sawtooth", gain: 0.04, detune: 8 },
           { frequency: 277, duration: 0.22, offset: 0.08, type: "triangle", gain: 0.045 },
           { frequency: 370, duration: 0.28, offset: 0.16, type: "sine", gain: 0.035 },
-        ]);
+        ], pan);
         break;
       case "phase-collapse":
         this.sequence([
           { frequency: 110, duration: 0.22, type: "sawtooth", gain: 0.055, detune: -18 },
           { frequency: 82, duration: 0.32, offset: 0.1, type: "triangle", gain: 0.05 },
           { frequency: 55, duration: 0.4, offset: 0.2, type: "sine", gain: 0.04 },
-        ]);
+        ], pan);
         break;
       case "round-held":
         this.sequence([
           { frequency: 392, duration: 0.38, type: "sine", gain: 0.045 },
           { frequency: 493.88, duration: 0.4, offset: 0.05, type: "sine", gain: 0.038 },
           { frequency: 587.33, duration: 0.48, offset: 0.1, type: "sine", gain: 0.04 },
-        ]);
+        ], pan);
         break;
       case "round-lost":
         this.sequence([
           { frequency: 196, duration: 0.34, type: "triangle", gain: 0.05 },
           { frequency: 146.83, duration: 0.5, offset: 0.12, type: "sine", gain: 0.045 },
-        ]);
+        ], pan);
         break;
       default: {
         const _exhaustive: never = sound;
@@ -179,15 +199,15 @@ class AudioDirector {
   startAmbience(): void {
     if (this.muted || this.ambienceActive) return;
     const context = this.ensureGraph();
-    if (!context || !this.master || context.state !== "running") return;
+    if (!context || !this.ambienceBus || context.state !== "running") return;
 
     const filter = context.createBiquadFilter();
     filter.type = "lowpass";
     filter.frequency.value = 220;
     filter.Q.value = 0.7;
 
-    const gain = context.createGain();
-    gain.gain.value = SILENCE;
+    const level = context.createGain();
+    level.gain.value = SILENCE;
 
     const osc = context.createOscillator();
     osc.type = "sine";
@@ -202,21 +222,21 @@ class AudioDirector {
     noise.connect(noiseGain);
     noiseGain.connect(filter);
 
-    filter.connect(gain);
-    gain.connect(this.master);
+    filter.connect(level);
+    level.connect(this.ambienceBus);
     osc.start();
     noise.start();
-    gain.gain.setTargetAtTime(0.035, context.currentTime, 0.8);
+    level.gain.setTargetAtTime(0.035, context.currentTime, 0.8);
 
     this.ambienceFilter = filter;
-    this.ambienceGain = gain;
+    this.ambienceLevel = level;
     this.ambienceOsc = osc;
     this.ambienceNoise = noise;
     this.ambienceActive = true;
   }
 
   updateAmbience(threat: number, phase: AmbiencePhase): void {
-    if (!this.ambienceActive || !this.context || !this.ambienceFilter || !this.ambienceGain || !this.ambienceOsc) {
+    if (!this.ambienceActive || !this.context || !this.ambienceFilter || !this.ambienceLevel || !this.ambienceOsc) {
       return;
     }
     if (this.muted) return;
@@ -233,29 +253,29 @@ class AudioDirector {
       : 0.028 + threatNorm * 0.025 + (phase === "collapse" ? 0.012 : 0);
     this.ambienceOsc.frequency.setTargetAtTime(baseFreq, now, 0.4);
     this.ambienceFilter.frequency.setTargetAtTime(cutoff, now, 0.35);
-    this.ambienceGain.gain.setTargetAtTime(level, now, 0.45);
+    this.ambienceLevel.gain.setTargetAtTime(level, now, 0.45);
   }
 
   duckAmbience(durationSec = 0.55): void {
-    if (!this.ambienceActive || !this.context || !this.ambienceGain || this.muted) return;
+    if (!this.ambienceActive || !this.context || !this.ambienceLevel || this.muted) return;
     const now = this.context.currentTime;
-    const current = Math.max(SILENCE, this.ambienceGain.gain.value);
-    this.ambienceGain.gain.cancelScheduledValues(now);
-    this.ambienceGain.gain.setValueAtTime(current, now);
-    this.ambienceGain.gain.linearRampToValueAtTime(current * 0.25, now + 0.05);
-    this.ambienceGain.gain.linearRampToValueAtTime(current, now + durationSec);
+    const current = Math.max(SILENCE, this.ambienceLevel.gain.value);
+    this.ambienceLevel.gain.cancelScheduledValues(now);
+    this.ambienceLevel.gain.setValueAtTime(current, now);
+    this.ambienceLevel.gain.linearRampToValueAtTime(current * 0.25, now + 0.05);
+    this.ambienceLevel.gain.linearRampToValueAtTime(current, now + durationSec);
   }
 
   stopAmbience(): void {
     if (!this.ambienceActive) return;
     const context = this.context;
-    const gain = this.ambienceGain;
+    const level = this.ambienceLevel;
     const osc = this.ambienceOsc;
     const noise = this.ambienceNoise;
-    if (context && gain) {
+    if (context && level) {
       const now = context.currentTime;
-      gain.gain.cancelScheduledValues(now);
-      gain.gain.setTargetAtTime(SILENCE, now, 0.08);
+      level.gain.cancelScheduledValues(now);
+      level.gain.setTargetAtTime(SILENCE, now, 0.08);
       window.setTimeout(() => {
         try {
           osc?.stop();
@@ -265,7 +285,7 @@ class AudioDirector {
         }
         osc?.disconnect();
         noise?.disconnect();
-        gain.disconnect();
+        level.disconnect();
         this.ambienceFilter?.disconnect();
       }, 220);
     } else {
@@ -278,7 +298,7 @@ class AudioDirector {
     }
     this.ambienceOsc = null;
     this.ambienceNoise = null;
-    this.ambienceGain = null;
+    this.ambienceLevel = null;
     this.ambienceFilter = null;
     this.ambienceActive = false;
   }
@@ -297,19 +317,30 @@ class AudioDirector {
 
   private ensureGraph(): AudioContext | null {
     if (typeof window === "undefined" || typeof window.AudioContext === "undefined") return null;
-    if (this.context && this.master) return this.context;
+    if (this.context && this.master && this.ambienceBus && this.effectsBus) return this.context;
 
     const context = new window.AudioContext();
     const master = context.createGain();
     master.gain.value = this.muted ? SILENCE : 0.72;
     master.connect(context.destination);
+
+    const ambienceBus = context.createGain();
+    ambienceBus.gain.value = 1;
+    ambienceBus.connect(master);
+
+    const effectsBus = context.createGain();
+    effectsBus.gain.value = 1;
+    effectsBus.connect(master);
+
     this.context = context;
     this.master = master;
+    this.ambienceBus = ambienceBus;
+    this.effectsBus = effectsBus;
     return context;
   }
 
-  private sequence(tones: readonly ToneSpec[]): void {
-    for (const tone of tones) this.tone(tone);
+  private sequence(tones: readonly ToneSpec[], pan?: number): void {
+    for (const tone of tones) this.tone(tone, pan);
   }
 
   private tone({
@@ -319,10 +350,10 @@ class AudioDirector {
     gain = 0.04,
     type = "sine",
     detune = 0,
-  }: ToneSpec): void {
+  }: ToneSpec, pan?: number): void {
     const context = this.context;
-    const master = this.master;
-    if (!context || !master || context.state !== "running") return;
+    const effectsBus = this.effectsBus;
+    if (!context || !effectsBus || context.state !== "running") return;
 
     const startAt = context.currentTime + Math.max(0, offset);
     const peakAt = startAt + Math.min(0.018, duration * 0.25);
@@ -340,12 +371,23 @@ class AudioDirector {
     envelope.gain.exponentialRampToValueAtTime(SILENCE, endAt);
 
     oscillator.connect(envelope);
-    envelope.connect(master);
+
+    let output: AudioNode = envelope;
+    let panner: StereoPannerNode | null = null;
+    if (pan !== undefined) {
+      panner = context.createStereoPanner();
+      panner.pan.setValueAtTime(pan, startAt);
+      envelope.connect(panner);
+      output = panner;
+    }
+
+    output.connect(effectsBus);
     oscillator.start(startAt);
     oscillator.stop(endAt + 0.025);
     oscillator.addEventListener("ended", () => {
       oscillator.disconnect();
       envelope.disconnect();
+      panner?.disconnect();
     }, { once: true });
   }
 }

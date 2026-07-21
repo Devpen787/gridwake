@@ -8,7 +8,7 @@ import { explainInterpretation } from "../game/instinct";
 import type { CompiledStrategy } from "../game/types";
 import type { DirectiveEvidence, InterpretationWarning, SourceSpan, StrategyInterpretation } from "../game/instinct/types";
 import { CoreMark } from "./CoreMark";
-import { StrategyPreview } from "./StrategyPreview";
+import { StrategyPreview, type StrategyPreviewHighlight } from "./StrategyPreview";
 
 type ProgramScreenProps = Readonly<{
   initialSource: string;
@@ -41,9 +41,13 @@ function WarningList({ warnings }: Readonly<{ warnings: readonly InterpretationW
 function InterpretationPanel({
   interpretation,
   explained,
+  highlight,
+  onHighlight,
 }: Readonly<{
   interpretation: StrategyInterpretation;
   explained: ReturnType<typeof explainInterpretation>;
+  highlight: StrategyPreviewHighlight;
+  onHighlight: (next: StrategyPreviewHighlight) => void;
 }>) {
   const roles = [
     { key: "guardian", label: "GUARDIAN", text: explained.guardian, tone: "guardian" },
@@ -65,7 +69,20 @@ function InterpretationPanel({
 
       <div className="strategy-lab__roles">
         {roles.map((role) => (
-          <article key={role.key} className={`strategy-lab__role strategy-lab__role--${role.tone}`}>
+          <article
+            key={role.key}
+            className={[
+              `strategy-lab__role strategy-lab__role--${role.tone}`,
+              highlight?.kind === "role" && highlight.role === role.key ? "strategy-lab__role--highlight" : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
+            onMouseEnter={() => onHighlight({ kind: "role", role: role.key })}
+            onMouseLeave={() => onHighlight(null)}
+            onFocus={() => onHighlight({ kind: "role", role: role.key })}
+            onBlur={() => onHighlight(null)}
+            tabIndex={0}
+          >
             <span>{role.label}</span>
             <p>{role.text}</p>
           </article>
@@ -82,7 +99,19 @@ function InterpretationPanel({
           <span>EVIDENCE</span>
           <ul>
             {interpretation.evidenceByDirective.map((entry: DirectiveEvidence) => (
-              <li key={entry.directiveIndex}>
+              <li
+                key={entry.directiveIndex}
+                onMouseEnter={() => onHighlight({ kind: "directive", index: entry.directiveIndex })}
+                onMouseLeave={() => onHighlight(null)}
+                onFocus={() => onHighlight({ kind: "directive", index: entry.directiveIndex })}
+                onBlur={() => onHighlight(null)}
+                tabIndex={0}
+                className={
+                  highlight?.kind === "directive" && highlight.index === entry.directiveIndex
+                    ? "strategy-lab__evidence-item--highlight"
+                    : ""
+                }
+              >
                 <small>D{entry.directiveIndex + 1} · {entry.provenance.toUpperCase()}</small>
                 <strong>{spanText(entry.spans) || "compiler inference"}</strong>
               </li>
@@ -112,6 +141,7 @@ function InterpretationPanel({
 
 export function ProgramScreen({ initialSource, onBack, onConfirm }: ProgramScreenProps) {
   const [source, setSource] = useState(initialSource);
+  const [highlight, setHighlight] = useState<StrategyPreviewHighlight>(null);
   const [shouldAutoFocus] = useState(
     () => typeof window === "undefined"
       || !window.matchMedia("(pointer: coarse)").matches,
@@ -186,6 +216,10 @@ export function ProgramScreen({ initialSource, onBack, onConfirm }: ProgramScree
                     type="button"
                     aria-pressed={active}
                     onClick={() => setSource(example.source)}
+                    onMouseEnter={() => setHighlight({ kind: "formation" })}
+                    onMouseLeave={() => setHighlight(null)}
+                    onFocus={() => setHighlight({ kind: "formation" })}
+                    onBlur={() => setHighlight(null)}
                   >
                     {example.label}
                   </button>
@@ -212,12 +246,15 @@ export function ProgramScreen({ initialSource, onBack, onConfirm }: ProgramScree
             <StrategyPreview
               strategy={compilation.strategy}
               interpretation={compilation.interpretation}
+              highlight={highlight}
             />
           </div>
 
           <InterpretationPanel
             interpretation={compilation.interpretation}
             explained={explained}
+            highlight={highlight}
+            onHighlight={setHighlight}
           />
         </div>
 

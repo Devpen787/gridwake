@@ -1,6 +1,7 @@
 # GRIDWAKE Visual System — Phosphor Noir
 
-Reference: `design/reference/gameplay-north-star.png`
+Reference: `design/reference/gameplay-north-star.png`  
+**Active authoring pass:** [`PHOSPHOR_NOIR_V2.md`](./PHOSPHOR_NOIR_V2.md)
 
 ## Tokens
 

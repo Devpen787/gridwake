@@ -3,6 +3,7 @@ import { gameAudio } from "../audio/audioDirector";
 import {
   activatePulse,
   advanceTick,
+  conditionActive,
   phaseForTick,
   pulseGuidance,
   queueManualIntent,
@@ -10,12 +11,16 @@ import {
   threatLevel,
   worstSector,
 } from "../game/engine";
+import type { CanonicalDirective } from "../game/instinct/types";
 import {
+  CORE_X,
   OVERRIDE_MAX_TICKS,
   PULSE_CLEAR_CAP,
   TICK_RATE,
   type EngineState,
   type GameEvent,
+  type LightRole,
+  type LightState,
   type ManualIntent,
   type RoundPhase,
 } from "../game/types";
@@ -41,8 +46,6 @@ type GameScreenProps = Readonly<{
   onResolved: (state: EngineState) => void;
 }>;
 
-type KickKind = "damage" | "pulse" | null;
-
 const HEALTH_SEGMENTS = 10;
 const PHASE_TOAST_MS = 1_050;
 
@@ -63,6 +66,103 @@ function currentIntention(state: EngineState): string {
   const intercepting = state.lights.find((light) => light.mode === "intercept");
   if (intercepting) return intercepting.intention;
   return state.lights[0]?.intention ?? "HOLD FORMATION";
+}
+
+function formatTargetShort(target: CanonicalDirective["target"]): string {
+  switch (target) {
+    case "core":
+      return "CORE";
+    case "nearest-breach":
+      return "NEAREST BREACH";
+    case "highest-urgency-breach":
+      return "HIGHEST URGENCY";
+    case "highest-pressure-sector":
+      return "HIGHEST PRESSURE";
+    case "shared-trail":
+      return "SHARED TRAIL";
+    case "ally":
+      return "ALLY";
+    default: {
+      const _exhaustive: never = target;
+      return _exhaustive;
+    }
+  }
+}
+
+function directiveMatchesRole(directive: CanonicalDirective, role: LightRole): boolean {
+  if (directive.actor === role) return true;
+  if (directive.actor !== "squad") return false;
+  if (role === "scout") return directive.action === "intercept";
+  if (role === "mender") return directive.action === "repair" || directive.target === "shared-trail";
+  return directive.action === "hold"
+    || directive.action === "orbit"
+    || directive.action === "screen"
+    || directive.action === "regroup";
+}
+
+function findActiveRoleDirective(
+  plan: NonNullable<EngineState["plan"]>,
+  state: EngineState,
+  role: LightRole,
+): CanonicalDirective | null {
+  let best: CanonicalDirective | null = null;
+  for (const directive of plan.directives) {
+    if (!directiveMatchesRole(directive, role)) continue;
+    if (!conditionActive(directive.condition, state)) continue;
+    if (!best || directive.priority < best.priority) best = directive;
+  }
+  return best;
+}
+
+function formatConciseDirective(
+  role: LightRole,
+  directive: CanonicalDirective,
+  policy: EngineState["policy"],
+): string {
+  const parts = [role.toUpperCase(), formatTargetShort(directive.target)];
+  if (directive.action === "intercept") {
+    const leash = directive.leashCells ?? policy.pursuitLimit;
+    parts.push(leash === 0 ? "NO CHASE" : `CHASE ${leash}`);
+  } else {
+    parts.push(directive.action.replace(/-/g, " ").toUpperCase());
+  }
+  parts.push(directive.continuation.toUpperCase());
+  return parts.join(" · ");
+}
+
+function focusLight(state: EngineState): LightState | null {
+  if (state.possessedLightId) {
+    return state.lights.find((light) => light.id === state.possessedLightId) ?? null;
+  }
+  return state.lights.find((light) => light.mode === "intercept") ?? state.lights[0] ?? null;
+}
+
+function activeDirectiveText(state: EngineState): string {
+  const light = focusLight(state);
+  if (!light) return currentIntention(state);
+
+  if (state.possessedLightId === light.id) {
+    return `${light.role.toUpperCase()} · MANUAL OVERRIDE`;
+  }
+
+  if (!state.plan) return light.intention;
+
+  const directive = findActiveRoleDirective(state.plan, state, light.role);
+  if (directive) return formatConciseDirective(light.role, directive, state.policy);
+
+  if (light.mode === "intercept") {
+    const leash = state.policy.pursuitLimit === 0 ? "NO CHASE" : `CHASE ${state.policy.pursuitLimit}`;
+    return `${light.role.toUpperCase()} · INTERCEPT · ${leash} · RETURN`;
+  }
+
+  return light.intention;
+}
+
+function positionalGridX(state: EngineState, kind: GameEvent["kind"]): number | undefined {
+  if (kind === "damage") return CORE_X;
+  const focus = focusLight(state);
+  if (focus) return focus.x;
+  return undefined;
 }
 
 function colorCss(color: number): string {
@@ -104,7 +204,6 @@ export function GameScreen({
   onResolved,
 }: GameScreenProps) {
   const [state, setState] = useState(initialState);
-  const [kick, setKick] = useState<KickKind>(null);
   const [pulseKick, setPulseKick] = useState(false);
   const [showControlsHint, setShowControlsHint] = useState(() => shouldShowControlsHint());
   const [phaseToast, setPhaseToast] = useState<GameEvent | null>(null);
@@ -112,7 +211,6 @@ export function GameScreen({
   const keysRef = useRef(new Set<string>());
   /** Discrete WASD/arrow taps — set synchronously so the RAF tick cannot race React setState. */
   const tapIntentRef = useRef<ManualIntent | null>(null);
-  const lastDamageRef = useRef(initialState.damageTaken);
   const lastPulseUsedRef = useRef(initialState.pulse.usedAtTick);
   const lastSoundEventRef = useRef<string | null>(null);
   const lastPossessedSoundRef = useRef(initialState.possessedLightId);
@@ -138,7 +236,9 @@ export function GameScreen({
 
     // Routine intercept/repair stay world-local; keep audio but no toast.
     if (event.kind === "intercept" || event.kind === "repair") {
-      gameAudio.play(event.kind === "repair" ? "repair" : "intercept");
+      gameAudio.play(event.kind === "repair" ? "repair" : "intercept", {
+        gridX: positionalGridX(state, event.kind),
+      });
       return;
     }
     const sound = event.kind === "damage"
@@ -148,7 +248,7 @@ export function GameScreen({
         : event.kind === "phase"
           ? "warning"
           : "warning";
-    gameAudio.play(sound);
+    gameAudio.play(sound, { gridX: positionalGridX(state, event.kind) });
     if (event.kind === "pulse") gameAudio.duckAmbience();
   }, [state.lastEvent]);
 
@@ -175,7 +275,7 @@ export function GameScreen({
       state.possessedLightId !== null
       && state.possessedLightId !== lastPossessedSoundRef.current
     ) {
-      gameAudio.play("possess");
+      gameAudio.play("possess", { gridX: state.lights.find((light) => light.id === state.possessedLightId)?.x });
     }
     lastPossessedSoundRef.current = state.possessedLightId;
   }, [state.possessedLightId]);
@@ -258,25 +358,11 @@ export function GameScreen({
   }, [onResolved, state]);
 
   useEffect(() => {
-    if (state.damageTaken > lastDamageRef.current) {
-      setKick("damage");
-    }
-    lastDamageRef.current = state.damageTaken;
-  }, [state.damageTaken]);
-
-  useEffect(() => {
     if (state.pulse.usedAtTick !== null && state.pulse.usedAtTick !== lastPulseUsedRef.current) {
-      setKick("pulse");
       setPulseKick(true);
     }
     lastPulseUsedRef.current = state.pulse.usedAtTick;
   }, [state.pulse.usedAtTick]);
-
-  useEffect(() => {
-    if (kick === null) return;
-    const timeout = window.setTimeout(() => setKick(null), 160);
-    return () => window.clearTimeout(timeout);
-  }, [kick]);
 
   useEffect(() => {
     if (!pulseKick) return;
@@ -345,7 +431,7 @@ export function GameScreen({
   const threat = useMemo(() => threatLevel(state.corruption), [state.corruption]);
   const sector = useMemo(() => worstSector(state.corruption), [state.corruption]);
   const guidance = pulseGuidance(state.health, threat, state.policy.pulseHealthThreshold);
-  const intention = currentIntention(state);
+  const activeDirective = activeDirectiveText(state);
   const possessCue = possessLabel(state);
   const band = healthBand(state.health);
   const filledSegments = Math.max(0, Math.ceil((state.health / 100) * HEALTH_SEGMENTS));
@@ -368,7 +454,6 @@ export function GameScreen({
         `game--${guidance.toLowerCase()}`,
         `game--event-${state.lastEvent?.kind ?? "idle"}`,
         `game--health-${band}`,
-        kick ? `game--kick-${kick}` : "",
       ]
         .filter(Boolean)
         .join(" ")}
@@ -475,8 +560,8 @@ export function GameScreen({
           </div>
         ) : null}
         <p className={`current-intention${possessCue ? " current-intention--possess" : ""}`}>
-          <span>{possessCue ? "ENGAGED" : "CURRENT INTENTION"}</span>
-          <strong>{possessCue ?? intention}</strong>
+          <span>{possessCue ? "ENGAGED" : "ACTIVE DIRECTIVE"}</span>
+          <strong>{activeDirective}</strong>
         </p>
         <button
           className={[
@@ -510,7 +595,7 @@ export function GameScreen({
       <div className="screen-reader-state" aria-live="polite">
         Core health {state.health}. {Math.ceil((state.maxTicks - state.tick) / TICK_RATE)} seconds remain.
         Threat {threat}. Sector {sector + 1}. Pulse {state.pulse.available ? guidance.toLowerCase() : "spent"}.
-        Intention {intention}. Phase {phase}.
+        Intention {activeDirective}. Phase {phase}.
         Override {state.overrideTicksRemaining} ticks remain.
         {possessCue ? ` ${possessCue}. Use WASD to move. Escape to release.` : allowPossess ? " Press 1 2 or 3 to possess a light." : ""}
       </div>

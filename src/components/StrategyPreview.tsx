@@ -9,12 +9,19 @@ import {
   type CompiledStrategy,
   type Point,
 } from "../game/types";
-import type { CanonicalDirective, StrategyInterpretation } from "../game/instinct/types";
+import type { CanonicalDirective, CanonicalStrategyPlan, StrategyInterpretation } from "../game/instinct/types";
+
+export type StrategyPreviewHighlight =
+  | Readonly<{ kind: "role"; role: "guardian" | "scout" | "mender" }>
+  | Readonly<{ kind: "formation" }>
+  | Readonly<{ kind: "directive"; index: number }>
+  | null;
 
 type StrategyPreviewProps = Readonly<{
   strategy: CompiledStrategy | null;
   interpretation?: StrategyInterpretation | null;
   previewSeed?: number;
+  highlight?: StrategyPreviewHighlight;
 }>;
 
 const PREVIEW_SEED = 1;
@@ -36,40 +43,53 @@ function RoleGlyph({
   shape,
   interceptor,
   role,
+  emphasized,
 }: Readonly<{
   point: Point;
   color: string;
   shape: "diamond" | "circle" | "triangle";
   interceptor: boolean;
   role: "guardian" | "scout" | "mender";
+  emphasized: boolean;
 }>) {
   const { x, y } = cellCenter(point);
   const r = CELL * 0.42;
+  const strokeWidth = emphasized ? 2.6 : 1.6;
+  const glowOpacity = emphasized ? 0.95 : 0.85;
+  const fillOpacity = emphasized ? "44" : "22";
   return (
-    <g>
+    <g className={emphasized ? "strategy-preview__role--highlight" : undefined}>
       {interceptor ? (
-        <circle cx={x} cy={y} r={r * 1.85} fill="none" stroke="#40e8ff" strokeWidth={1.2} opacity={0.85} />
+        <circle
+          cx={x}
+          cy={y}
+          r={r * (emphasized ? 2.05 : 1.85)}
+          fill="none"
+          stroke="#40e8ff"
+          strokeWidth={emphasized ? 2 : 1.2}
+          opacity={glowOpacity}
+        />
       ) : null}
       {shape === "circle" ? (
         <>
-          <circle cx={x} cy={y} r={r} fill="none" stroke={color} strokeWidth={1.6} />
+          <circle cx={x} cy={y} r={r} fill="none" stroke={color} strokeWidth={strokeWidth} />
           <circle cx={x} cy={y} r={r * 0.35} fill={color} />
         </>
       ) : null}
       {shape === "triangle" ? (
         <polygon
           points={`${x},${y - r} ${x + r},${y + r * 0.75} ${x - r},${y + r * 0.75}`}
-          fill={`${color}22`}
+          fill={`${color}${fillOpacity}`}
           stroke={color}
-          strokeWidth={1.6}
+          strokeWidth={strokeWidth}
         />
       ) : null}
       {shape === "diamond" ? (
         <polygon
           points={`${x},${y - r} ${x + r},${y} ${x},${y + r} ${x - r},${y}`}
-          fill={`${color}22`}
+          fill={`${color}${fillOpacity}`}
           stroke={color}
-          strokeWidth={1.6}
+          strokeWidth={strokeWidth}
         />
       ) : null}
       <title>{role.toUpperCase()}</title>
@@ -92,10 +112,35 @@ function formatContinuation(continuation: CanonicalDirective["continuation"]): s
   return "CONTINUE";
 }
 
+function roleEmphasized(
+  role: "guardian" | "scout" | "mender",
+  highlight: StrategyPreviewHighlight,
+  plan: CanonicalStrategyPlan | null,
+): boolean {
+  if (!highlight) return false;
+  if (highlight.kind === "role") return highlight.role === role;
+  if (highlight.kind === "formation") return true;
+  if (highlight.kind === "directive" && plan) {
+    const directive = plan.directives[highlight.index];
+    if (!directive) return false;
+    if (directive.actor === role) return true;
+    if (directive.actor === "squad") {
+      if (role === "scout") return directive.action === "intercept";
+      if (role === "mender") return directive.action === "repair" || directive.target === "shared-trail";
+      return directive.action === "hold"
+        || directive.action === "orbit"
+        || directive.action === "screen"
+        || directive.action === "regroup";
+    }
+  }
+  return false;
+}
+
 export function StrategyPreview({
   strategy,
   interpretation = null,
   previewSeed = PREVIEW_SEED,
+  highlight = null,
 }: StrategyPreviewProps) {
   const preview = useMemo(() => {
     if (!strategy) return null;
@@ -186,9 +231,19 @@ export function StrategyPreview({
     ?? policy.interceptors;
   const primaryScout = scoutDirectives[0];
   const leashLabel = policy.pursuitLimit === 0 ? "NO CHASE" : `LEASH +${policy.pursuitLimit}`;
+  const formationEmphasis = highlight?.kind === "formation";
 
   return (
-    <figure className="strategy-preview strategy-preview--lab" aria-label="Compiled Instinct preview">
+    <figure
+      className={[
+        "strategy-preview",
+        "strategy-preview--lab",
+        highlight ? "strategy-preview--highlighted" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+      aria-label="Compiled Instinct preview"
+    >
       <svg
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
         width="100%"
@@ -270,9 +325,10 @@ export function StrategyPreview({
           r={engageR}
           fill="none"
           stroke="#40e8ff"
-          strokeWidth={1.2}
-          opacity={0.55}
+          strokeWidth={formationEmphasis ? 2.2 : 1.2}
+          opacity={formationEmphasis ? 0.92 : 0.55}
           strokeDasharray={movementDash}
+          className={formationEmphasis ? "strategy-preview__formation--highlight" : undefined}
         />
 
         <circle
@@ -281,8 +337,8 @@ export function StrategyPreview({
           r={CELL * 1.1}
           fill="none"
           stroke="#7dd3fc"
-          strokeWidth={0.9}
-          opacity={0.45}
+          strokeWidth={roleEmphasized("guardian", highlight, plan) ? 1.8 : 0.9}
+          opacity={roleEmphasized("guardian", highlight, plan) ? 0.9 : 0.45}
           strokeDasharray="2 3"
         />
 
@@ -292,12 +348,12 @@ export function StrategyPreview({
           x2={menderTrailTarget.x}
           y2={menderTrailTarget.y}
           stroke="#34d399"
-          strokeWidth={1}
-          opacity={0.55}
+          strokeWidth={roleEmphasized("mender", highlight, plan) ? 1.8 : 1}
+          opacity={roleEmphasized("mender", highlight, plan) ? 0.92 : 0.55}
           strokeDasharray="4 3"
         />
 
-        <g opacity={0.9}>
+        <g opacity={roleEmphasized("scout", highlight, plan) ? 1 : 0.9}>
           <line x1={scoutReticle.x - 7} y1={scoutReticle.y} x2={scoutReticle.x + 7} y2={scoutReticle.y} stroke="#40e8ff" strokeWidth={1.2} />
           <line x1={scoutReticle.x} y1={scoutReticle.y - 7} x2={scoutReticle.x} y2={scoutReticle.y + 7} stroke="#40e8ff" strokeWidth={1.2} />
           <circle cx={scoutReticle.x} cy={scoutReticle.y} r={9} fill="none" stroke="#40e8ff" strokeWidth={0.8} opacity={0.7} />
@@ -354,6 +410,7 @@ export function StrategyPreview({
             shape={light.shape}
             interceptor={index < responderCount}
             role={light.role}
+            emphasized={roleEmphasized(light.role, highlight, plan)}
           />
         ))}
       </svg>
