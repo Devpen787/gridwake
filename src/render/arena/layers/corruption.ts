@@ -125,16 +125,13 @@ export function drawCorruption(
     if (!visual || visual.dyingAtTick !== null) continue;
     if (!living.has(key)) continue;
     const a = parseCellKey(key);
-    const candidates = [
-      ...cardinalNeighbors(a.x, a.y),
-      { x: a.x + 1, y: a.y + 1, key: `${a.x + 1}:${a.y + 1}` },
-      { x: a.x - 1, y: a.y + 1, key: `${a.x - 1}:${a.y + 1}` },
-    ].filter((candidate) => living.has(candidate.key) && candidate.key > key);
+    const candidates = cardinalNeighbors(a.x, a.y)
+      .filter((candidate) => living.has(candidate.key) && candidate.key > key);
     for (const candidate of candidates) {
       const hash = veinHash(key, candidate.key);
       // Sparse veins: most links stay implicit so the mass reads as tissue,
       // not scratched wireframe.
-      if ((hash & 7) < 5) continue;
+      if ((hash & 7) < 6) continue;
       const ax = pxX(layout, a.x);
       const ay = pxY(layout, a.y);
       const bx = pxX(layout, candidate.x);
@@ -154,7 +151,7 @@ export function drawCorruption(
         {
           color: PALETTE.corruptionVein,
           width: (phase === "collapse" ? 1.55 : 1.2) * layout.stroke,
-          alpha: phase === "probe" ? 0.34 : 0.5,
+          alpha: phase === "probe" ? 0.28 : 0.4,
         },
       );
       strokeSegment(
@@ -166,7 +163,7 @@ export function drawCorruption(
         {
           color: PALETTE.corruptionVein,
           width: (phase === "collapse" ? 1.55 : 1.2) * layout.stroke,
-          alpha: phase === "probe" ? 0.34 : 0.5,
+          alpha: phase === "probe" ? 0.28 : 0.4,
         },
       );
     }

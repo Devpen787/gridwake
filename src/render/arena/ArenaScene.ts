@@ -32,6 +32,8 @@ const POSSESS_CLAIM_MS = 280;
 
 /** Exponential damping rate (per second) for continuous light glide. */
 const GLIDE_RATE = 13;
+/** Faster chase for the possessed light so WASD feels immediate, not floaty. */
+const GLIDE_RATE_MANUAL = 26;
 
 export class ArenaScene {
   readonly root = new Container();
@@ -112,14 +114,16 @@ export class ArenaScene {
     const dt = this.lastFrameMs === 0 ? 16 : Math.min(100, nowMs - this.lastFrameMs);
     this.lastFrameMs = nowMs;
     const blend = reducedMotion || frozen ? 1 : 1 - Math.exp(-(dt / 1000) * GLIDE_RATE);
+    const possessedBlend = reducedMotion || frozen ? 1 : 1 - Math.exp(-(dt / 1000) * GLIDE_RATE_MANUAL);
     for (const light of state.lights) {
       const current = this.glidePositions.get(light.id);
       if (!current) {
         this.glidePositions.set(light.id, { x: light.x, y: light.y });
         continue;
       }
-      current.x += (light.x - current.x) * blend;
-      current.y += (light.y - current.y) * blend;
+      const chase = light.id === state.possessedLightId ? possessedBlend : blend;
+      current.x += (light.x - current.x) * chase;
+      current.y += (light.y - current.y) * chase;
     }
     const animMs = reducedMotion || frozen ? 0 : nowMs;
 

@@ -101,8 +101,8 @@ export function drawGrid(
       );
       strokeSegment(graphics, a.x, a.y, b.x, b.y, {
         color: major ? PALETTE.gridActive : PALETTE.gridInactive,
-        width: major ? 1.05 : 0.55,
-        alpha: (major ? 0.58 : 0.26) * majorBoost,
+        width: (major ? 1.05 : 0.6) * layout.stroke,
+        alpha: (major ? 0.58 : 0.3) * majorBoost,
       });
     }
   }
@@ -121,8 +121,8 @@ export function drawGrid(
       );
       strokeSegment(graphics, a.x, a.y, b.x, b.y, {
         color: major ? PALETTE.gridActive : PALETTE.gridInactive,
-        width: major ? 1.05 : 0.55,
-        alpha: (major ? 0.52 : 0.24) * majorBoost,
+        width: (major ? 1.05 : 0.6) * layout.stroke,
+        alpha: (major ? 0.52 : 0.28) * majorBoost,
       });
     }
   }

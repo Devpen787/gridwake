@@ -39,6 +39,13 @@ export function PixiArena({ state, frozen = false }: PixiArenaProps) {
 
     async function mount() {
       const nextApp = new Application();
+      // Cap the backing store around 5MP: a 3024x1602 retina viewport at
+      // resolution 2 is ~19MP of vector redraw per frame and drops to slideshow
+      // frame rates on integrated GPUs.
+      const hostRect = mountHost.getBoundingClientRect();
+      const hostArea = Math.max(1, hostRect.width * hostRect.height);
+      const maxResolution = Math.sqrt(5_000_000 / hostArea);
+      const resolution = Math.max(1, Math.min(2, window.devicePixelRatio || 1, maxResolution));
       await nextApp.init({
         resizeTo: mountHost,
         background: 0x03060a,
@@ -46,7 +53,7 @@ export function PixiArena({ state, frozen = false }: PixiArenaProps) {
         antialias: true,
         autoDensity: true,
         preference: "webgl",
-        resolution: Math.min(2, window.devicePixelRatio || 1),
+        resolution,
       });
       if (cancelled) {
         nextApp.destroy(true);
