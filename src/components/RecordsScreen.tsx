@@ -91,7 +91,10 @@ export function RecordsScreen({ onBack }: RecordsScreenProps) {
               <div><dt>GRIDS HELD</dt><dd>{career.held} · {career.holdRate}%</dd></div>
               <div><dt>BEST SCORE</dt><dd>{career.bestScore}{career.bestGrade ? ` · ${career.bestGrade}` : ""}</dd></div>
               <div><dt>HOLD STREAK</dt><dd>{career.currentStreak} / BEST {career.bestStreak}</dd></div>
-              <div><dt>AVG LAST {career.recentScores.length}</dt><dd>{career.averageRecent}</dd></div>
+              <div>
+                <dt>{career.recentScores.length > 1 ? `AVG LAST ${career.recentScores.length}` : "AVG SCORE"}</dt>
+                <dd>{career.averageRecent}</dd>
+              </div>
               <div><dt>LADDER</dt><dd>{ladder.cleared}/{ladder.total} · {ladder.stars}★</dd></div>
             </dl>
 
