@@ -68,9 +68,13 @@ export function segmentClauses(normalized: NormalizedText): Clause[] {
       merged[merged.length - 1] = `${merged[merged.length - 1]} ${part}`;
       continue;
     }
-    // Attach condition / sequencing tails to the prior action clause.
+    // Attach condition / sequencing tails to the prior action clause — but a
+    // fronted condition with its own body ("During surge, send two units…")
+    // is a standalone clause, not a tail of the previous one.
+    const frontedCondition = /^(?:when|if|during|after|until|unless)\b[^,.]*,\s*\S/.test(lowered);
     if (
       merged.length > 0
+      && !frontedCondition
       && /^(?:when|if|during|after|until|unless|then)\b/.test(lowered)
     ) {
       merged[merged.length - 1] = `${merged[merged.length - 1]} ${part}`;

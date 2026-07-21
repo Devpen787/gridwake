@@ -207,28 +207,48 @@ function parsePulse(normalized: NormalizedText): {
 }
 
 function parseCondition(clause: Clause, normalized: NormalizedText): StrategyCondition {
+  return parseConditionWithSpans(clause, normalized).condition;
+}
+
+function parseConditionWithSpans(
+  clause: Clause,
+  normalized: NormalizedText,
+): { condition: StrategyCondition; spans: SourceSpan[] } {
   const text = clause.text.toLowerCase();
   for (const entry of PHASE_PHRASES) {
-    if (entry.phrases.some((phrase) => text.includes(phrase))) {
-      return { kind: "phase", phase: entry.phase };
+    for (const phrase of entry.phrases) {
+      if (text.includes(phrase)) {
+        return {
+          condition: { kind: "phase", phase: entry.phase },
+          spans: findPhraseSpans(normalized, phrase),
+        };
+      }
     }
   }
   const health = text.match(/(?:falls?|drops?|below|under)\s*(?:below|under)?\s*(\d+)\s*%/);
   if (health || /core falls below|core health/.test(text)) {
     const percent = health ? clamp(Number(health[1]), 15, 80) : 35;
-    return { kind: "core-health-below", percent };
+    const start = health?.index ?? 0;
+    return {
+      condition: { kind: "core-health-below", percent },
+      spans: health ? [spanFromNormalized(normalized, start, start + health[0]!.length)] : [],
+    };
   }
   const within = text.match(/(?:within|reaches?|gets? within)\s+(\d+|one|two|three|four|five|six|seven|eight)\s*cells?/);
   if (within || /inner grid|reaches the inner/.test(text)) {
     const cells = within
       ? clamp(NUMBER_WORDS[within[1]!.toLowerCase()] ?? Number(within[1]), 1, 14)
       : 6;
-    return { kind: "threat-within", cells };
+    const start = within?.index ?? 0;
+    return {
+      condition: { kind: "threat-within", cells },
+      spans: within ? [spanFromNormalized(normalized, start, start + within[0]!.length)] : [],
+    };
   }
   if (/only when/.test(text) && /corruption|threat|breach/.test(text)) {
-    return { kind: "threat-within", cells: 6 };
+    return { condition: { kind: "threat-within", cells: 6 }, spans: [] };
   }
-  return { kind: "always" };
+  return { condition: { kind: "always" }, spans: [] };
 }
 
 function defaultTargetForAction(action: StrategyAction): StrategyTarget {
@@ -326,13 +346,14 @@ function extractDirectiveFromClause(
   if (localLeash.explicit) leash = localLeash.leash;
 
   const localResponders = parseResponder(local);
+  const conditionHit = parseConditionWithSpans(clause, local);
 
   return {
     directive: {
       actor,
       action,
       target,
-      condition: parseCondition(clause, local),
+      condition: conditionHit.condition,
       responderCount: localResponders.count ?? globals.responderCount,
       leashCells: leash,
       continuation: continuationFromClause(clause),
@@ -344,6 +365,7 @@ function extractDirectiveFromClause(
       ...(targetHit?.spans ?? []),
       ...localResponders.spans,
       ...localLeash.spans,
+      ...conditionHit.spans,
     ],
   };
 }

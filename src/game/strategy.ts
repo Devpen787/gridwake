@@ -41,7 +41,7 @@ export const STRATEGY_EXAMPLES: ReadonlyArray<Readonly<{ label: string; source: 
   {
     label: "DIVIDED WATCH",
     tier: "advanced",
-    source: "Guardian holds the core in a tight ring. Scout hunts the most crowded edge aggressively, then returns. Mender repairs shared trails.",
+    source: "Guardian holds the core in a tight ring. Scout intercepts the most crowded edge aggressively, then returns. Mender repairs shared trails.",
   },
   {
     label: "COUNTERPUNCH",
