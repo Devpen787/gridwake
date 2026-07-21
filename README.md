@@ -6,7 +6,7 @@
 
 Production preview: **https://gridwake.vercel.app**
 
-**2-minute demo video** (captioned, recorded against production): [`demo/gridwake-demo.webm`](demo/gridwake-demo.webm) · script + voiceover lines: [`demo/DEMO_SCRIPT.md`](demo/DEMO_SCRIPT.md)
+**2-minute demo video** (captioned, recorded against production): [`demo/gridwake-demo.mp4`](demo/gridwake-demo.mp4) · script + voiceover lines: [`demo/DEMO_SCRIPT.md`](demo/DEMO_SCRIPT.md)
 
 GRIDWAKE is a deterministic **45-second** strategy game. Write one sentence, wake a three-light squad, and hold a neon grid. A bounded tactical-language compiler (`local-instinct-v2`) turns prose into a canonical plan, shows what it understood, and lowers to engine dials; a seeded engine makes the round varied but exactly replayable.
 

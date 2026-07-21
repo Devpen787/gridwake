@@ -1,8 +1,8 @@
 # GRIDWAKE — 2-Minute Demo
 
-**Video:** [`demo/gridwake-demo.webm`](gridwake-demo.webm) · 1:48 · 1920×1080 · recorded live against https://gridwake.vercel.app
-Open it in Chrome (QuickTime can't play WebM): `open -a "Google Chrome" demo/gridwake-demo.webm`
-Need an `.mp4` for the submission form? `ffmpeg -i gridwake-demo.webm -c:v libx264 -crf 20 -pix_fmt yuv420p gridwake-demo.mp4`
+**Video:** [`demo/gridwake-demo.mp4`](gridwake-demo.mp4) — 1:48 · 1920×1080 · H.264 · 10 MB · recorded live against https://gridwake.vercel.app
+This is the file to upload (QuickTime, YouTube, Devpost, Slack all play it directly).
+Source recording: [`demo/gridwake-demo.webm`](gridwake-demo.webm) — VP8, plays in Chrome.
 
 The video carries its own on-screen captions, so it works with no audio at all. The voiceover below is optional — read it over the video and each line lands inside its scene at an easy pace. Don't rush; the pauses are part of it.
 
