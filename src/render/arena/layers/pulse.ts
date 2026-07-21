@@ -1,8 +1,65 @@
 import type { Graphics } from "pixi.js";
-import type { EngineState } from "../../../game/types";
+import { manhattan, parseCellKey, sectorCenter } from "../../../game/math";
+import { worstSector } from "../../../game/engine";
+import { CORE_X, CORE_Y, type EngineState } from "../../../game/types";
 import type { ArenaLayout } from "../layout";
 import { pxX, pxY } from "../layout";
 import { PALETTE } from "../palette";
+
+/**
+ * Live aim indicator: where the Pulse will strike if fired right now.
+ * Mirrors activatePulse's targeting (plan pulseGuidance target) read-only.
+ */
+export function drawPulseTarget(
+  graphics: Graphics,
+  layout: ArenaLayout,
+  state: EngineState,
+  animMs: number,
+): void {
+  if (!state.pulse.available || state.corruption.size === 0) return;
+  const preference = state.plan?.pulseGuidance.target ?? "highest-pressure-sector";
+  let target: { x: number; y: number };
+  if (preference === "nearest-core-breach") {
+    const core = { x: CORE_X, y: CORE_Y };
+    let best: { x: number; y: number } | null = null;
+    let bestDistance = Number.POSITIVE_INFINITY;
+    for (const key of state.corruption) {
+      const point = parseCellKey(key);
+      const distance = manhattan(point, core);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        best = point;
+      }
+    }
+    if (!best) return;
+    target = best;
+  } else {
+    target = sectorCenter(worstSector(state.corruption));
+  }
+
+  const x = pxX(layout, target.x);
+  const y = pxY(layout, target.y);
+  const spin = animMs === 0 ? 0 : (animMs * 0.0011) % (Math.PI * 2);
+  const throb = animMs === 0 ? 1 : 0.75 + 0.25 * Math.sin(animMs * 0.004);
+  const radius = layout.cell * 1.35 * throb;
+  const sw = layout.stroke;
+
+  graphics.beginPath();
+  graphics.circle(x, y, radius).stroke({ color: PALETTE.signal, width: 1.2 * sw, alpha: 0.4 * throb });
+  graphics.beginPath();
+  graphics.circle(x, y, layout.cell * 0.22).fill({ color: PALETTE.signal, alpha: 0.3 * throb });
+  // Four rotating reticle ticks.
+  for (let tick = 0; tick < 4; tick += 1) {
+    const angle = spin + (tick * Math.PI) / 2;
+    const inner = radius * 0.75;
+    const outer = radius * 1.2;
+    graphics.beginPath();
+    graphics
+      .moveTo(x + Math.cos(angle) * inner, y + Math.sin(angle) * inner)
+      .lineTo(x + Math.cos(angle) * outer, y + Math.sin(angle) * outer)
+      .stroke({ color: PALETTE.signal, width: 1.6 * sw, alpha: 0.7 * throb });
+  }
+}
 
 export function drawPulse(
   graphics: Graphics,

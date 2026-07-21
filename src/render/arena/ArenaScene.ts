@@ -14,7 +14,7 @@ import { drawCore } from "./layers/core";
 import { drawCorruption } from "./layers/corruption";
 import { drawGrid, gridFieldFor, type PulseWarp } from "./layers/grid";
 import { drawImpacts } from "./layers/impacts";
-import { drawPulse, drawWarningShimmer } from "./layers/pulse";
+import { drawPulse, drawPulseTarget, drawWarningShimmer } from "./layers/pulse";
 import { drawRoles } from "./layers/roles";
 import { drawTactics } from "./layers/tactics";
 import { drawTrails } from "./layers/trails";
@@ -170,6 +170,7 @@ export class ArenaScene {
     drawCore(this.actorLayer, layout, state, phase, frozen, animMs);
     drawRoles(this.actorLayer, layout, state, this.glidePositions, claimProgress, animMs);
     const impactStats = drawImpacts(this.actorLayer, layout, state, reducedMotion || frozen);
+    if (!frozen) drawPulseTarget(this.actorLayer, layout, state, animMs);
     drawPulse(this.actorLayer, layout, state);
     drawWarningShimmer(this.actorLayer, layout, state);
 

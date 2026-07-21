@@ -914,8 +914,18 @@ function resolveIntercepts(
       continue;
     }
 
-    if (light.mode !== "intercept") continue;
     if (tick % 4 !== 0) continue;
+
+    // Contact clearing: any light standing on corruption burns that cell at
+    // the intercept cadence — a light crossing the mass is never inert.
+    const underKey = cellKey(light.x, light.y);
+    if (remaining.has(underKey)) {
+      remaining.delete(underKey);
+      autonomousPoints.push({ x: light.x, y: light.y });
+      continue;
+    }
+
+    if (light.mode !== "intercept") continue;
 
     const target = [...remaining]
       .map(parseCellKey)

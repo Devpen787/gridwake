@@ -2003,3 +2003,12 @@ button:disabled { cursor: not-allowed; }
 .strategy-lab__reading-toggle:hover { color: var(--signal); }
 .strategy-lab__reading-toggle span { font-size: .7rem; color: var(--signal); }
 .strategy-lab__reading { border-top: 1px solid rgba(24, 51, 68, .4); }
+
+.strategy-field__tip {
+  margin: 6px 0 0;
+  color: #5d6d79;
+  font-family: Inter, system-ui, sans-serif;
+  font-size: .72rem;
+  line-height: 1.5;
+}
+.strategy-field__tip em { color: #8b99a5; font-style: normal; }

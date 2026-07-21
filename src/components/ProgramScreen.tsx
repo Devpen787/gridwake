@@ -257,8 +257,12 @@ export function ProgramScreen({ initialSource, level = null, onBack, onConfirm }
                 spellCheck="true"
                 autoFocus={shouldAutoFocus}
                 onChange={(event) => setSource(event.target.value)}
-                placeholder="Circle the light. Send two units after anything that gets close, then return without chasing."
+                placeholder="Command the squad — or each light by name: Guardian holds the core. Scout hunts the densest sector. Mender repairs shared trails. Pulse below 45%."
               />
+              <p className="strategy-field__tip">
+                Address lights individually — <em>Guardian…</em>, <em>Scout…</em>, <em>Mender…</em> — or the whole squad at once.
+                Your sentence also aims the Pulse.
+              </p>
               <div className="strategy-field__meta">
                 <span>{usingDefault ? "DEFAULT INSTINCT LOADED" : `${remaining.toString().padStart(3, "0")} REMAINING`}</span>
                 <span className="strategy-summary" aria-live="polite">{explained.formation}</span>
