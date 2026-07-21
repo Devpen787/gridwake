@@ -223,17 +223,6 @@ export function ResultScreen({
             {recordOutcome.previousBestScore !== null ? ` (WAS ${recordOutcome.previousBestScore})` : ""}
           </p>
         ) : null}
-        <p className="result__summary">
-          {held
-            ? resultSummary(
-                strategy.policy.movementStyle,
-                strategy.policy.formation,
-                receipt.interceptClears,
-                receipt.trailRepairs,
-                receipt.pulseClears,
-              )
-            : "Corruption reached the core. The tactic failed on this grid; the player did not."}
-        </p>
 
         <div className="performance-card" aria-label="Round performance">
           <div className="performance-card__grade">
@@ -297,6 +286,58 @@ export function ResultScreen({
             </span>
           </section>
         ) : null}
+
+        <div className="result__actions">
+          {followingLevel && onNextLevel ? (
+            <button className="primary-action" type="button" onClick={onNextLevel}>
+              NEXT GRID · {followingLevel.name} →
+            </button>
+          ) : null}
+          {multiplayer ? null : (
+            <button className={followingLevel ? "secondary-action" : "primary-action"} type="button" onClick={onTuneSameGrid}>
+              TUNE SAME GRID
+            </button>
+          )}
+          {multiplayer ? null : (
+            <button className="secondary-action" type="button" onClick={onNewGrid}>
+              {level ? "GRID LADDER" : "NEW GRID"}
+            </button>
+          )}
+          <button
+            className="secondary-action receipt-copy"
+            type="button"
+            onClick={() => {
+              setCopyState("idle");
+              void copyText(formatReceiptShareText(receipt))
+                .then(() => {
+                  setCopyState("copied");
+                  window.setTimeout(() => setCopyState("idle"), 1_500);
+                })
+                .catch(() => setCopyState("error"));
+            }}
+          >
+            {copyState === "copied"
+              ? "COPIED"
+              : copyState === "error"
+                ? "COPY FAILED"
+                : "COPY RECEIPT"}
+          </button>
+          <button className={multiplayer ? "primary-action" : "secondary-action"} type="button" onClick={onLeave}>
+            {multiplayer ? "LEAVE ROOM" : "LEAVE GRID"}
+          </button>
+        </div>
+
+        <p className="result__summary">
+          {held
+            ? resultSummary(
+                strategy.policy.movementStyle,
+                strategy.policy.formation,
+                receipt.interceptClears,
+                receipt.trailRepairs,
+                receipt.pulseClears,
+              )
+            : "Corruption reached the core. The tactic failed on this grid; the player did not."}
+        </p>
 
         <section className="career-strip" aria-label="Career stats">
           <span className="career-strip__rank">{recordOutcome.career.rank}</span>
@@ -363,46 +404,6 @@ export function ResultScreen({
           <span>REPLAY {receipt.replayHash}</span>
           <span>{statusLabel}</span>
         </footer>
-
-        <div className="result__actions">
-          {followingLevel && onNextLevel ? (
-            <button className="primary-action" type="button" onClick={onNextLevel}>
-              NEXT GRID · {followingLevel.name} →
-            </button>
-          ) : null}
-          {multiplayer ? null : (
-            <button className={followingLevel ? "secondary-action" : "primary-action"} type="button" onClick={onTuneSameGrid}>
-              TUNE SAME GRID
-            </button>
-          )}
-          {multiplayer ? null : (
-            <button className="secondary-action" type="button" onClick={onNewGrid}>
-              {level ? "GRID LADDER" : "NEW GRID"}
-            </button>
-          )}
-          <button
-            className="secondary-action receipt-copy"
-            type="button"
-            onClick={() => {
-              setCopyState("idle");
-              void copyText(formatReceiptShareText(receipt))
-                .then(() => {
-                  setCopyState("copied");
-                  window.setTimeout(() => setCopyState("idle"), 1_500);
-                })
-                .catch(() => setCopyState("error"));
-            }}
-          >
-            {copyState === "copied"
-              ? "COPIED"
-              : copyState === "error"
-                ? "COPY FAILED"
-                : "COPY RECEIPT"}
-          </button>
-          <button className={multiplayer ? "primary-action" : "secondary-action"} type="button" onClick={onLeave}>
-            {multiplayer ? "LEAVE ROOM" : "LEAVE GRID"}
-          </button>
-        </div>
       </div>
     </section>
   );
