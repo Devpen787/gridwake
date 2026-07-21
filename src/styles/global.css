@@ -1982,3 +1982,24 @@ button:disabled { cursor: not-allowed; }
 @media (prefers-reduced-motion: reduce) {
   .ambient-grid, .landing h1 { animation: none; }
 }
+
+/* Strategy lab: casual-first — plan up top, compiler forensics behind a toggle */
+.strategy-lab__workspace { align-self: start; }
+.strategy-lab__reading-block { border-top: 1px solid rgba(24, 51, 68, .55); }
+.strategy-lab__reading-toggle {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 10px 14px;
+  border: 0;
+  background: transparent;
+  color: #5d6d79;
+  cursor: pointer;
+  font-size: .5rem;
+  letter-spacing: .14em;
+  transition: color .2s ease;
+}
+.strategy-lab__reading-toggle:hover { color: var(--signal); }
+.strategy-lab__reading-toggle span { font-size: .7rem; color: var(--signal); }
+.strategy-lab__reading { border-top: 1px solid rgba(24, 51, 68, .4); }

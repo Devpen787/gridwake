@@ -40,62 +40,18 @@ function WarningList({ warnings }: Readonly<{ warnings: readonly InterpretationW
   );
 }
 
-function InterpretationPanel({
+function ReadingDetails({
   interpretation,
-  explained,
   highlight,
   onHighlight,
 }: Readonly<{
   interpretation: StrategyInterpretation;
-  explained: ReturnType<typeof explainInterpretation>;
   highlight: StrategyPreviewHighlight;
   onHighlight: (next: StrategyPreviewHighlight) => void;
 }>) {
-  const roles = [
-    { key: "guardian", label: "GUARDIAN", text: explained.guardian, tone: "guardian" },
-    { key: "scout", label: "SCOUT", text: explained.scout, tone: "scout" },
-    { key: "mender", label: "MENDER", text: explained.mender, tone: "mender" },
-  ] as const;
-
+  const softWarnings = interpretation.warnings.filter((warning) => !warning.blocking);
   return (
-    <section className="strategy-lab__interpretation" aria-label="Strategy interpretation">
-      <header className="strategy-lab__interpretation-header">
-        <span>WHAT GRIDWAKE UNDERSTOOD</span>
-        <strong>{Math.round(interpretation.confidence * 100)}% CONFIDENCE</strong>
-      </header>
-
-      <div className="strategy-lab__formation">
-        <span>FORMATION</span>
-        <strong>{explained.formation}</strong>
-      </div>
-
-      <div className="strategy-lab__roles">
-        {roles.map((role) => (
-          <article
-            key={role.key}
-            className={[
-              `strategy-lab__role strategy-lab__role--${role.tone}`,
-              highlight?.kind === "role" && highlight.role === role.key ? "strategy-lab__role--highlight" : "",
-            ]
-              .filter(Boolean)
-              .join(" ")}
-            onMouseEnter={() => onHighlight({ kind: "role", role: role.key })}
-            onMouseLeave={() => onHighlight(null)}
-            onFocus={() => onHighlight({ kind: "role", role: role.key })}
-            onBlur={() => onHighlight(null)}
-            tabIndex={0}
-          >
-            <span>{role.label}</span>
-            <p>{role.text}</p>
-          </article>
-        ))}
-      </div>
-
-      <div className="strategy-lab__pulse">
-        <span>PULSE GUIDANCE</span>
-        <strong>{explained.pulse}</strong>
-      </div>
-
+    <div className="strategy-lab__reading">
       {interpretation.evidenceByDirective.length > 0 ? (
         <div className="strategy-lab__evidence">
           <span>EVIDENCE</span>
@@ -136,7 +92,95 @@ function InterpretationPanel({
         </div>
       ) : null}
 
-      <WarningList warnings={interpretation.warnings} />
+      <WarningList warnings={softWarnings} />
+    </div>
+  );
+}
+
+function InterpretationPanel({
+  interpretation,
+  explained,
+  highlight,
+  onHighlight,
+}: Readonly<{
+  interpretation: StrategyInterpretation;
+  explained: ReturnType<typeof explainInterpretation>;
+  highlight: StrategyPreviewHighlight;
+  onHighlight: (next: StrategyPreviewHighlight) => void;
+}>) {
+  const [readingOpen, setReadingOpen] = useState(false);
+  const roles = [
+    { key: "guardian", label: "GUARDIAN", text: explained.guardian, tone: "guardian" },
+    { key: "scout", label: "SCOUT", text: explained.scout, tone: "scout" },
+    { key: "mender", label: "MENDER", text: explained.mender, tone: "mender" },
+  ] as const;
+  const blockingWarnings = interpretation.warnings.filter((warning) => warning.blocking);
+  const detailCount = interpretation.evidenceByDirective.length
+    + interpretation.defaultsUsed.length
+    + interpretation.unresolved.length
+    + interpretation.warnings.filter((warning) => !warning.blocking).length;
+
+  return (
+    <section className="strategy-lab__interpretation" aria-label="Strategy interpretation">
+      <header className="strategy-lab__interpretation-header">
+        <span>YOUR SQUAD WILL</span>
+        <strong>{Math.round(interpretation.confidence * 100)}% CONFIDENCE</strong>
+      </header>
+
+      <div className="strategy-lab__formation">
+        <span>FORMATION</span>
+        <strong>{explained.formation}</strong>
+      </div>
+
+      <div className="strategy-lab__roles">
+        {roles.map((role) => (
+          <article
+            key={role.key}
+            className={[
+              `strategy-lab__role strategy-lab__role--${role.tone}`,
+              highlight?.kind === "role" && highlight.role === role.key ? "strategy-lab__role--highlight" : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
+            onMouseEnter={() => onHighlight({ kind: "role", role: role.key })}
+            onMouseLeave={() => onHighlight(null)}
+            onFocus={() => onHighlight({ kind: "role", role: role.key })}
+            onBlur={() => onHighlight(null)}
+            tabIndex={0}
+          >
+            <span>{role.label}</span>
+            <p>{role.text}</p>
+          </article>
+        ))}
+      </div>
+
+      <div className="strategy-lab__pulse">
+        <span>PULSE</span>
+        <strong>{explained.pulse}</strong>
+      </div>
+
+      <WarningList warnings={blockingWarnings} />
+
+      {detailCount > 0 ? (
+        <div className="strategy-lab__reading-block">
+          <button
+            type="button"
+            className="strategy-lab__reading-toggle"
+            aria-expanded={readingOpen}
+            onClick={() => setReadingOpen((open) => !open)}
+          >
+            HOW IT READ YOUR WORDS
+            <span>{readingOpen ? "−" : "+"}</span>
+          </button>
+          {readingOpen ? (
+            <ReadingDetails
+              interpretation={interpretation}
+              highlight={highlight}
+              onHighlight={onHighlight}
+            />
+          ) : null}
+        </div>
+      ) : null}
     </section>
   );
 }
