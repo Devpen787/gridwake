@@ -14,6 +14,10 @@ no application database or server authority. The only application server path
 exchanges a server-only Cloudflare key for one-hour ICE credentials; it does not
 receive room commands or gameplay state.
 
+The discovery client connects to four deterministic Trystero Nostr relays. Peer
+handshake and empty-room discovery failures surface after 30 and 35 seconds,
+respectively, so transient relay delivery does not fail a valid room prematurely.
+
 ## State and authority result
 
 - The creator is the sole ordering authority for lobby commands, launch, Pulse,

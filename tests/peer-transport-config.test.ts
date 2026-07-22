@@ -9,6 +9,7 @@ const ICE_SERVERS: RTCIceServer[] = [
 describe("peer transport configuration", () => {
   it("uses Cloudflare ICE servers with direct-first routing in production", () => {
     const config = createPeerRoomConfig({ code: "ABC234", iceServers: ICE_SERVERS });
+    expect(config.relayConfig).toEqual({ redundancy: 4 });
     expect(config.rtcConfig?.iceServers).toEqual(ICE_SERVERS);
     expect(config.rtcConfig?.iceTransportPolicy).toBe("all");
   });

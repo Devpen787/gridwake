@@ -5,8 +5,8 @@ import { ROUND_TICKS } from "../game/types";
 import type { RoomCommand, RoomPulseEvent, RoomState } from "./types";
 
 const APP_ID = "gridwake-openai-build-week-2026-v1";
-const PEER_HANDSHAKE_TIMEOUT_MS = 15_000;
-const ROOM_DISCOVERY_TIMEOUT_MS = 18_000;
+const PEER_HANDSHAKE_TIMEOUT_MS = 30_000;
+const ROOM_DISCOVERY_TIMEOUT_MS = 35_000;
 
 export function createPeerRoomConfig(input: Readonly<{
   code: string;
@@ -16,7 +16,7 @@ export function createPeerRoomConfig(input: Readonly<{
   return {
     appId: APP_ID,
     password: `gridwake-room-${input.code}`,
-    relayConfig: { redundancy: 2 },
+    relayConfig: { redundancy: 4 },
     ...(input.iceServers && input.iceServers.length > 0
       ? {
           rtcConfig: {
