@@ -1,15 +1,18 @@
 # GRIDWAKE multiplayer authority and adversarial audit
 
-Date: 2026-07-19
+Date: 2026-07-19 · TURN addendum: 2026-07-22
 
 Status: implemented P2P beta; production security is not claimed
 
 ## Reviewed boundary
 
 This audit covers the current 2-3 player browser room in
-`src/multiplayer/room.ts`, `peerTransport.ts`, `input.ts`, and `recovery.ts`.
+`src/multiplayer/room.ts`, `peerTransport.ts`, `turnCredentials.ts`, `input.ts`,
+`recovery.ts`, and the `/api/turn-credentials` broker.
 The transport is Trystero 0.25.2 over WebRTC with Nostr-based discovery. There is
-no application database or server authority.
+no application database or server authority. The only application server path
+exchanges a server-only Cloudflare key for one-hour ICE credentials; it does not
+receive room commands or gameplay state.
 
 ## State and authority result
 
@@ -32,8 +35,10 @@ no application database or server authority.
 
 The reducer suite covers stale sequence replay, fourth-player overflow, duplicate
 roles, non-host launch, edit-after-ready, mutation-after-launch, deterministic host
-transfer before launch, byte-equivalent launch inputs, malformed Pulse timing, and
-too-late Pulse timing. Browser proof covers two independent peers, non-host Pulse,
+transfer before launch, byte-equivalent launch inputs, malformed Pulse timing,
+too-late Pulse timing, same-origin broker checks, per-instance rate limiting,
+malformed upstream data, secret non-disclosure, port-53 filtering, client fallback,
+and explicit direct-first/forced-relay configurations. Browser proof covers two independent peers, non-host Pulse,
 five-second replay checkpoints, and identical final receipt hashes.
 
 ## Residual risks — accepted only for the hackathon preview
@@ -47,11 +52,11 @@ five-second replay checkpoints, and identical final receipt hashes.
    valuable prize, which limits incentive but does not remove the risk.
 3. **Unsigned receipts:** replay receipts are reproducible locally and compared by
    peers, but are not signed by an operator or independent verifier.
-4. **Network metadata:** WebRTC peers, Nostr relays, and STUN infrastructure can
+4. **Network metadata:** WebRTC peers, Nostr relays, and Cloudflare STUN/TURN infrastructure can
    process connection metadata and may expose address information. Room payloads
    travel over encrypted WebRTC channels; that does not make the surrounding
    connection metadata invisible.
-5. **Availability:** relay outage, NAT restrictions, missing TURN coverage, browser
+5. **Availability:** credential-broker or relay outage, NAT restrictions, browser
    suspension, or host departure can prevent or terminate a room.
 6. **Moderation:** callsigns and Instinct text are peer-visible user content. The
    preview has rules and a leave path, but no centralized report queue or ban system.
@@ -60,6 +65,10 @@ five-second replay checkpoints, and identical final receipt hashes.
 8. **Client compromise:** script injection, malicious extensions, or a compromised
    dependency can bypass client checks. No central secret or service credential is
    shipped, limiting blast radius but not protecting the local user.
+9. **Relay abuse:** same-origin browser checks and an in-memory per-instance request
+   limit reduce accidental abuse but are not user authentication and do not create a
+   global quota. Cloudflare usage must be monitored and the long-term key rotated if
+   abuse is detected.
 
 ## Release conclusion
 

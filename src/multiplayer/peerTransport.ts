@@ -1,10 +1,39 @@
-import { joinRoom, type JsonValue, type MessageAction, type Room } from "trystero";
+import { joinRoom, type JoinRoomConfig, type JsonValue, type MessageAction, type Room } from "trystero";
 import { applyRoomCommand } from "./room";
 import { schedulePulseTick } from "./input";
 import { ROUND_TICKS } from "../game/types";
 import type { RoomCommand, RoomPulseEvent, RoomState } from "./types";
 
 const APP_ID = "gridwake-openai-build-week-2026-v1";
+const PEER_HANDSHAKE_TIMEOUT_MS = 15_000;
+const ROOM_DISCOVERY_TIMEOUT_MS = 18_000;
+
+export function createPeerRoomConfig(input: Readonly<{
+  code: string;
+  iceServers?: RTCIceServer[];
+  forceRelay?: boolean;
+}>): JoinRoomConfig {
+  return {
+    appId: APP_ID,
+    password: `gridwake-room-${input.code}`,
+    relayConfig: { redundancy: 2 },
+    ...(input.iceServers && input.iceServers.length > 0
+      ? {
+          rtcConfig: {
+            iceServers: input.iceServers,
+            iceTransportPolicy: input.forceRelay ? "relay" : "all",
+          },
+        }
+      : {}),
+  };
+}
+
+export function formatPeerJoinError(error: string, hasRelay: boolean): string {
+  const detail = error.trim() || "unknown connection error";
+  return hasRelay
+    ? `Could not establish the peer connection, even with relay available (${detail}). Exit and retry.`
+    : `Could not establish a direct peer connection (${detail}). Relay is unavailable; exit and retry on another network.`;
+}
 
 type StripEnvelope<T> = T extends RoomCommand ? Omit<T, "id" | "actorId" | "baseSequence"> : never;
 export type PeerRoomCommand = StripEnvelope<RoomCommand>;
@@ -78,6 +107,7 @@ export class PeerRoomSession {
   private hostTick = 0;
   private pulseEvent: RoomPulseEvent | null = null;
   private readonly checkpoints = new Map<number, Map<string, number>>();
+  private discoveryTimeout: ReturnType<typeof setTimeout> | null = null;
   private closed = false;
 
   constructor(input: Readonly<{
@@ -89,6 +119,8 @@ export class PeerRoomSession {
     onError: (message: string) => void;
     onPulse: (event: RoomPulseEvent) => void;
     onCheckpoint: (tick: number, matched: boolean) => void;
+    iceServers?: RTCIceServer[];
+    forceRelay?: boolean;
   }>) {
     this.actorId = input.actorId;
     this.displayName = input.displayName;
@@ -97,16 +129,13 @@ export class PeerRoomSession {
     this.onError = input.onError;
     this.onPulse = input.onPulse;
     this.onCheckpoint = input.onCheckpoint;
+    const hasRelay = Boolean(input.iceServers?.length);
     this.room = joinRoom(
-      {
-        appId: APP_ID,
-        password: `gridwake-room-${input.code}`,
-        relayConfig: { redundancy: 2 },
-      },
+      createPeerRoomConfig({ code: input.code, iceServers: input.iceServers, forceRelay: input.forceRelay }),
       `gridwake-${input.code}`,
       {
-        onJoinError: ({ error }) => this.onError(`Peer connection failed: ${error}`),
-        handshakeTimeoutMs: 8_000,
+        onJoinError: ({ error }) => this.onError(formatPeerJoinError(error, hasRelay)),
+        handshakeTimeoutMs: PEER_HANDSHAKE_TIMEOUT_MS,
       },
     );
     this.wire = this.room.makeAction<JsonValue>("gridwake-room-v1");
@@ -115,6 +144,19 @@ export class PeerRoomSession {
     this.room.onPeerLeave = (peerId) => this.handlePeerLeave(peerId);
 
     if (this.state) this.onState(this.state);
+    else {
+      this.discoveryTimeout = setTimeout(() => {
+        if (!this.closed && !this.state) {
+          this.onError("No room host answered. Check the six-character code, then exit and retry.");
+        }
+      }, ROOM_DISCOVERY_TIMEOUT_MS);
+    }
+  }
+
+  private clearDiscoveryTimeout(): void {
+    if (this.discoveryTimeout === null) return;
+    clearTimeout(this.discoveryTimeout);
+    this.discoveryTimeout = null;
   }
 
   private isHost(): boolean {
@@ -258,6 +300,7 @@ export class PeerRoomSession {
       if (this.state && message.state.sequence < this.state.sequence) return;
       this.hostPeerId = peerId;
       this.state = message.state;
+      this.clearDiscoveryTimeout();
       this.onState(this.state);
       if (!this.state.members.some((member) => member.id === this.actorId)) {
         this.send({ kind: "join", actorId: this.actorId, displayName: this.displayName }, peerId);
@@ -268,6 +311,7 @@ export class PeerRoomSession {
     if (message.kind === "error" && (!this.hostPeerId || this.hostPeerId === peerId)) {
       this.hostPeerId = peerId;
       this.state = message.state;
+      this.clearDiscoveryTimeout();
       this.onState(this.state);
       this.onError(message.message);
     }
@@ -375,6 +419,7 @@ export class PeerRoomSession {
 
   close(): void {
     this.closed = true;
+    this.clearDiscoveryTimeout();
     void this.room.leave();
   }
 }

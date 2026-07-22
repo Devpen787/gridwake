@@ -19,8 +19,10 @@ import type { RoomState } from "./multiplayer/types";
 import { CoreMark } from "./components/CoreMark";
 import { PolicyScreen, type PolicyKind } from "./components/PolicyScreen";
 import { clearRoomRecovery, readRoomRecovery, saveRoomRecovery } from "./multiplayer/recovery";
+import { fetchTurnCredentials } from "./multiplayer/turnCredentials";
 
 type AppStage = "landing" | "campaign" | "records" | "room-entry" | "lobby" | "program" | "awakening" | "playing" | "result" | "policy";
+export type RoomTransportStatus = "negotiating" | "relay-ready" | "direct-only";
 
 export function seedForRound(roundNumber: number): number {
   return (0x9e3779b9 + Math.imul(roundNumber, 7_919)) >>> 0;
@@ -37,12 +39,14 @@ export function App() {
   const [roomState, setRoomState] = useState<RoomState | null>(null);
   const [roomActorId, setRoomActorId] = useState<string | null>(null);
   const [roomError, setRoomError] = useState<string | null>(null);
+  const [roomTransportStatus, setRoomTransportStatus] = useState<RoomTransportStatus | null>(null);
   const [scheduledPulseTick, setScheduledPulseTick] = useState<number | null>(null);
   const [verifiedCheckpointTick, setVerifiedCheckpointTick] = useState<number | null>(null);
   const [activeLevel, setActiveLevel] = useState<CampaignLevel | null>(null);
   const [policyKind, setPolicyKind] = useState<PolicyKind>("terms");
   const [policyReturnStage, setPolicyReturnStage] = useState<AppStage>("landing");
   const roomSession = useRef<PeerRoomSession | null>(null);
+  const roomAttempt = useRef(0);
   const initialRoomCode = useMemo(() => normalizeRoomCode(new URLSearchParams(window.location.search).get("room") ?? ""), []);
 
   useEffect(() => {
@@ -72,11 +76,13 @@ export function App() {
     setRoomError(null);
     setScheduledPulseTick(null);
     setVerifiedCheckpointTick(null);
+    setRoomTransportStatus(null);
     setStage("room-entry");
   }, []);
   const beginJoinRoom = useCallback(() => {
     setRoomMode("join");
     setRoomError(null);
+    setRoomTransportStatus(null);
     setStage("room-entry");
   }, []);
   const openPolicy = useCallback((kind: PolicyKind) => {
@@ -137,6 +143,7 @@ export function App() {
   }, [roundState, strategy]);
 
   const returnHome = useCallback(() => {
+    roomAttempt.current += 1;
     const code = roomState?.code;
     roomSession.current?.close();
     roomSession.current = null;
@@ -148,12 +155,15 @@ export function App() {
     setRoomState(null);
     setRoomActorId(null);
     setRoomError(null);
+    setRoomTransportStatus(null);
     if (code) clearRoomRecovery(code);
     window.history.replaceState({}, "", window.location.pathname);
     setStage("landing");
   }, [roomState?.code]);
 
   const enterRoom = useCallback(async (displayName: string, codeInput: string) => {
+    const attempt = roomAttempt.current + 1;
+    roomAttempt.current = attempt;
     const now = Date.now();
     let initialState: RoomState | null;
     let code: string;
@@ -185,13 +195,37 @@ export function App() {
     setRoomActorId(actorId);
     setRoomState(initialState);
     setRoomError(null);
+    setRoomTransportStatus("negotiating");
     window.history.replaceState({}, "", `${window.location.pathname}?room=${code}`);
-    const { PeerRoomSession: PeerRoomSessionRuntime } = await import("./multiplayer/peerTransport");
+    setStage("lobby");
+
+    const peerModule = import("./multiplayer/peerTransport");
+    let iceServers: RTCIceServer[] | undefined;
+    try {
+      const credentials = await fetchTurnCredentials();
+      if (roomAttempt.current !== attempt) return;
+      iceServers = credentials.iceServers;
+      setRoomTransportStatus("relay-ready");
+    } catch {
+      if (roomAttempt.current !== attempt) return;
+      setRoomTransportStatus("direct-only");
+      setRoomError("Relay unavailable—trying a direct connection only. If the room does not appear, exit and retry.");
+    }
+
+    let PeerRoomSessionRuntime: typeof PeerRoomSession;
+    try {
+      ({ PeerRoomSession: PeerRoomSessionRuntime } = await peerModule);
+    } catch {
+      if (roomAttempt.current === attempt) setRoomError("The peer networking module could not load. Exit and retry.");
+      return;
+    }
+    if (roomAttempt.current !== attempt) return;
     const session = new PeerRoomSessionRuntime({
       actorId,
       displayName,
       code,
       initialState,
+      iceServers,
       onError: setRoomError,
       onPulse: (event) => setScheduledPulseTick(event.executeAtTick),
       onCheckpoint: (tick, matched) => {
@@ -213,7 +247,6 @@ export function App() {
       },
     });
     roomSession.current = session;
-    setStage("lobby");
   }, [roomMode]);
 
   const sendRoomCommand = useCallback((command: PeerRoomCommand) => {
@@ -262,6 +295,7 @@ export function App() {
           actorId={roomActorId}
           state={roomState}
           error={roomError}
+          transportStatus={roomTransportStatus ?? "negotiating"}
           onCommand={sendRoomCommand}
           onExit={returnHome}
         />
@@ -270,7 +304,11 @@ export function App() {
         <section className="lobby screen lobby--connecting" aria-label="Connecting to peer room">
           <CoreMark active size="large" />
           <p>FINDING ROOM {normalizeRoomCode(new URLSearchParams(window.location.search).get("room") ?? "")}…</p>
-          <small>ENCRYPTED PEER DISCOVERY · NO DATABASE</small>
+          <small>{roomTransportStatus === "relay-ready"
+            ? "DIRECT-FIRST P2P · RELAY READY"
+            : roomTransportStatus === "direct-only"
+              ? "DIRECT P2P ONLY · RELAY UNAVAILABLE"
+              : "SECURING DIRECT + RELAY PATHS"}</small>
           {roomError ? <p className="form-error" role="alert">{roomError}</p> : null}
           <button className="secondary-action" type="button" onClick={returnHome}>EXIT</button>
         </section>

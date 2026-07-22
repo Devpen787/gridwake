@@ -3,6 +3,7 @@ import type { LightRole } from "../game/types";
 import { launchBlockReason } from "../multiplayer/room";
 import type { RoomCommand, RoomState } from "../multiplayer/types";
 import { CoreMark } from "./CoreMark";
+import type { RoomTransportStatus } from "../App";
 
 type StripEnvelope<T> = T extends RoomCommand ? Omit<T, "id" | "actorId" | "baseSequence"> : never;
 type LobbyCommand = StripEnvelope<RoomCommand>;
@@ -11,6 +12,7 @@ type LobbyScreenProps = Readonly<{
   actorId: string;
   state: RoomState;
   error: string | null;
+  transportStatus: RoomTransportStatus;
   onCommand: (command: LobbyCommand) => void;
   onExit: () => void;
 }>;
@@ -21,7 +23,7 @@ const ROLE_HELP: Record<LightRole, string> = {
   mender: "LINK FOCUS · REPAIR CADENCE",
 };
 
-export function LobbyScreen({ actorId, state, error, onCommand, onExit }: LobbyScreenProps) {
+export function LobbyScreen({ actorId, state, error, transportStatus, onCommand, onExit }: LobbyScreenProps) {
   const member = state.members.find((candidate) => candidate.id === actorId);
   const [displayName, setDisplayName] = useState(member?.displayName ?? "");
   const [role, setRole] = useState<LightRole>(member?.role ?? "scout");
@@ -75,7 +77,7 @@ export function LobbyScreen({ actorId, state, error, onCommand, onExit }: LobbyS
       <header className="screen-header">
         <button className="text-action" type="button" onClick={onExit}>← EXIT</button>
         <span>ROOM / {state.code}</span>
-        <span className="truth-label truth-label--inline">P2P SESSION</span>
+        <span className="truth-label truth-label--inline">{transportStatus === "relay-ready" ? "P2P + TURN" : transportStatus === "direct-only" ? "P2P DIRECT" : "P2P CONNECTING"}</span>
       </header>
 
       <div className="lobby__content">

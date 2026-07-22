@@ -61,7 +61,7 @@ Primary Codex `/feedback` Session ID (the thread where the majority of core func
 - **UI:** React product flow + accessible DOM HUD.
 - **Render:** Pixi.js Phosphor Noir arena (interpolation, trails, corruption, Pulse, sparks) — render-only; does not mutate engine state. Experimental Three.js warp path lives under `src/render/cinematic/` (not wired by default).
 - **Audio:** procedural Web Audio cues; mute preference in `localStorage`; unlock after first gesture.
-- **Multiplayer:** Trystero P2P host-ordered log; checkpoint hashes; not server-authoritative.
+- **Multiplayer:** Trystero P2P host-ordered log; checkpoint hashes; direct-first WebRTC with short-lived Cloudflare TURN credentials from a server-only Vercel Function; not server-authoritative.
 
 ## Determinism and replay
 
@@ -72,7 +72,8 @@ Identical seed + compiled strategy + Pulse timing + possession/manual intents �
 - Host-ordered input; host can cheat.
 - Receipts are local and unsigned.
 - Live mid-round reconnect is disabled.
-- Restrictive-NAT / custom TURN is **not** proven.
+- Cloudflare TURN credentials are short-lived and the long-term key remains server-side. If the broker fails, the UI says `P2P DIRECT` and attempts the direct/STUN path.
+- A forced-relay candidate check proves TURN reachability, but a complete multi-device restrictive-NAT round is **not** yet proven.
 - Solo possession is disabled in rooms; Pulse is host-scheduled.
 
 ## Run and verify locally
@@ -90,11 +91,13 @@ npm run verify
 
 Requires Node 22+ and Python 3.12 (`python3.12` on PATH for golden validation).
 
+P2P relay support also requires server-only `TURN_KEY_ID` and `TURN_KEY_SECRET` environment variables. Never expose either value through a `VITE_` variable or commit them to the repository.
+
 ## Known limitations
 
 - No runtime model compiler; local instinct-v2 tactical language only.
 - Score history, campaign progress, and ranks are per-device (localStorage); no signed/server receipts or global leaderboards.
-- Cross-network restrictive-NAT failure path unproven.
+- End-to-end multi-device play across a restrictive NAT remains unproven; the credential broker and forced-relay configuration are covered separately.
 - Balance is provisional; fixtures prove reproducibility, not “fun.”
 - The narrated submission demo is checked in at `demo/gridwake-demo-submission.mp4`; upload this exact file publicly to YouTube and supply that URL in the Devpost submission form.
 
