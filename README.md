@@ -60,6 +60,7 @@ Primary Codex `/feedback` Session ID (the thread where the majority of core func
 - **Engine:** pure TypeScript, 10 Hz logical ticks, seeded LCG/hash helpers, replay hash over simulation state.
 - **UI:** React product flow + accessible DOM HUD.
 - **Render:** Pixi.js Phosphor Noir arena (interpolation, trails, corruption, Pulse, sparks) — render-only; does not mutate engine state. Experimental Three.js warp path lives under `src/render/cinematic/` (not wired by default).
+- **3D asset layer:** optional build-time Thrixel → GLB pipeline for squad and tunnel presentation. Generated assets remain render-only, are locally retained, and degrade to procedural geometry when missing. See [`docs/THRIXEL_ASSET_PIPELINE.md`](docs/THRIXEL_ASSET_PIPELINE.md).
 - **Audio:** procedural Web Audio cues; mute preference in `localStorage`; unlock after first gesture.
 - **Multiplayer:** Trystero P2P host-ordered log; checkpoint hashes; direct-first WebRTC with short-lived Cloudflare TURN credentials from a server-only Vercel Function; not server-authoritative.
 
@@ -92,6 +93,8 @@ npm run verify
 Requires Node 22+ and Python 3.12 (`python3.12` on PATH for golden validation).
 
 P2P relay support also requires server-only `TURN_KEY_ID` and `TURN_KEY_SECRET` environment variables. Never expose either value through a `VITE_` variable or commit them to the repository.
+
+Optional Thrixel authoring requires a build-time-only `THRIXEL_API_KEY`. It is never required to play GRIDWAKE and must never be exposed through a `VITE_` variable. Free-plan generated assets require Thrixel attribution under CC BY 4.0.
 
 ## Known limitations
 

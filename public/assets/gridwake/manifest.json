@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "status": "thrixel-assets",
+  "generatedAt": "2026-08-01T12:13:09.152Z",
+  "attribution": {
+    "label": "Selected 3D assets generated with Thrixel",
+    "url": "https://www.thrixel.com/",
+    "license": "CC BY 4.0"
+  },
+  "assets": {
+    "tunnel-rib": {
+      "path": "/assets/gridwake/tunnel-rib.glb",
+      "source": "thrixel",
+      "bytes": 125448,
+      "submissionId": "246c0eb5-a599-451e-a2cd-474b8a277543"
+    },
+    "guardian": {
+      "path": "/assets/gridwake/guardian.glb",
+      "source": "thrixel",
+      "bytes": 74032,
+      "submissionId": "89d2cad6-04f9-4195-818f-3cfe050b9261"
+    },
+    "scout": {
+      "path": "/assets/gridwake/scout.glb",
+      "source": "thrixel",
+      "bytes": 59852,
+      "submissionId": "c4e43496-fe4e-44bc-9861-2280e7fd37e6"
+    },
+    "mender": {
+      "path": "/assets/gridwake/mender.glb",
+      "source": "thrixel",
+      "bytes": 217300,
+      "submissionId": "e5433321-869f-4029-b089-b2adc53214e0"
+    },
+    "grid-core": {
+      "path": "/assets/gridwake/grid-core.glb",
+      "source": "thrixel",
+      "bytes": 221024,
+      "submissionId": "1af8fc8f-07bb-41bb-aee1-9ccff49b5d67"
+    },
+    "corruption-gate": null
+  }
+}

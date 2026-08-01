@@ -1,11 +1,19 @@
 import type { Graphics } from "pixi.js";
-import { CORE_X, CORE_Y, GRID_COLUMNS, GRID_ROWS } from "../../../game/types";
+import { CORE_X, CORE_Y, GRID_COLUMNS, GRID_ROWS, TUNNEL_SCROLL_TICKS } from "../../../game/types";
 import { strokeSegment } from "../draw";
 import type { ArenaLayout } from "../layout";
 import { pxX, pxY } from "../layout";
 import { PALETTE } from "../palette";
 
 export type PulseWarp = Readonly<{ x: number; y: number; radius: number; strength: number }>;
+export type GridMotion = Readonly<{ offsetX: number; columnPhase: number }>;
+
+export function tunnelGridMotion(tick: number, distance: number, cell: number): GridMotion {
+  return {
+    offsetX: -((tick % TUNNEL_SCROLL_TICKS) / TUNNEL_SCROLL_TICKS) * cell,
+    columnPhase: distance,
+  };
+}
 
 export type GridField = Readonly<{
   pulse: PulseWarp | null;
@@ -83,19 +91,22 @@ export function drawGrid(
   layout: ArenaLayout,
   field: GridField | null,
   frozen = false,
+  motion: GridMotion = { offsetX: 0, columnPhase: 0 },
 ): void {
   const majorBoost = frozen ? 1.25 : 1;
   // Subdivide per cell so bowl/pulse can curve the lattice (north-star warp).
-  for (let x = 0; x <= GRID_COLUMNS; x += 1) {
-    const major = x % 5 === 0;
+  for (let x = 0; x <= GRID_COLUMNS + 1; x += 1) {
+    const screenX = layout.originX + x * layout.cell + motion.offsetX;
+    if (screenX < layout.originX || screenX > layout.originX + layout.width) continue;
+    const major = (x + motion.columnPhase) % 5 === 0;
     for (let y = 0; y < GRID_ROWS; y += 1) {
       const a = displacePoint(
-        layout.originX + x * layout.cell,
+        screenX,
         layout.originY + y * layout.cell,
         field,
       );
       const b = displacePoint(
-        layout.originX + x * layout.cell,
+        screenX,
         layout.originY + (y + 1) * layout.cell,
         field,
       );

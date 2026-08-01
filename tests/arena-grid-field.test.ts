@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { displacePoint, type GridField } from "../src/render/arena/layers/grid";
+import { displacePoint, tunnelGridMotion, type GridField } from "../src/render/arena/layers/grid";
 
 describe("phosphor grid field", () => {
   it("pulls mid-ring points gently toward the core bowl", () => {
@@ -27,5 +27,11 @@ describe("phosphor grid field", () => {
     const sample = displacePoint(400, 100, field);
     expect(sample.x).toBe(400);
     expect(sample.y).toBe(100);
+  });
+
+  it("moves tunnel columns left and resets seamlessly on each cell advance", () => {
+    expect(tunnelGridMotion(0, 0, 20)).toEqual({ offsetX: -0, columnPhase: 0 });
+    expect(tunnelGridMotion(3, 0, 20)).toEqual({ offsetX: -10, columnPhase: 0 });
+    expect(tunnelGridMotion(6, 1, 20)).toEqual({ offsetX: -0, columnPhase: 1 });
   });
 });

@@ -175,4 +175,10 @@ describe("campaign ladder", () => {
       expect(level.seconds).toBeLessThanOrEqual(60);
     }
   });
+
+  it("includes one explicit moving tunnel without changing the default arena", () => {
+    const tunnelLevels = CAMPAIGN_LEVELS.filter((level) => level.arenaMode === "tunnel");
+    expect(tunnelLevels.map((level) => level.id)).toEqual(["twin-front"]);
+    expect(CAMPAIGN_LEVELS.filter((level) => level.arenaMode === "bastion")).toHaveLength(CAMPAIGN_LEVELS.length - 1);
+  });
 });

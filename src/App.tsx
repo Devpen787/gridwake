@@ -100,7 +100,7 @@ export function App() {
     if (!strategy) return;
     const seed = roundSeedOverride ?? activeLevel?.seed ?? seedForRound(roundNumber);
     setRoundState(activeLevel && roundSeedOverride === null
-      ? createInitialState(seed, strategy, activeLevel.maxTicks)
+      ? createInitialState(seed, strategy, activeLevel.maxTicks, activeLevel.arenaMode)
       : createInitialState(seed, strategy));
     setStage("playing");
   }, [activeLevel, roundNumber, roundSeedOverride, strategy]);

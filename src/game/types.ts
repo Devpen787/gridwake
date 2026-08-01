@@ -2,7 +2,7 @@ export const GRID_COLUMNS = 30;
 export const GRID_ROWS = 18;
 export const CORE_X = 15;
 export const CORE_Y = 9;
-export const ENGINE_VERSION = "gridwake-local-v0.6";
+export const ENGINE_VERSION = "gridwake-local-v0.7";
 export const TICK_RATE = 10;
 export const ROUND_SECONDS = 45;
 export const ROUND_TICKS = ROUND_SECONDS * TICK_RATE;
@@ -11,8 +11,18 @@ export const PULSE_CLEAR_CAP = 6;
 export const PULSE_SHIELD_TICKS = 12;
 /** Six seconds of scarce manual override at 10 Hz. */
 export const OVERRIDE_MAX_TICKS = 60;
+/** Moving-front cadence: the tunnel advances one cell every 0.6 seconds. */
+export const TUNNEL_SCROLL_TICKS = 6;
 
 export type Point = Readonly<{ x: number; y: number }>;
+
+export type ArenaMode = "bastion" | "tunnel";
+
+export type ArenaState = Readonly<{
+  mode: ArenaMode;
+  /** Whole tunnel cells crossed by the moving front. */
+  distance: number;
+}>;
 
 export type LightRole = "guardian" | "scout" | "mender";
 
@@ -106,6 +116,7 @@ export type EngineState = Readonly<{
   rngState: number;
   tick: number;
   maxTicks: number;
+  arena: ArenaState;
   health: number;
   policy: StrategyPolicy;
   corruption: ReadonlySet<string>;

@@ -115,6 +115,64 @@ button:disabled { cursor: not-allowed; }
 .landing__copy { text-align: center; }
 .landing h1 { margin: 0; font-size: clamp(2.8rem, 7vw, 5.5rem); line-height: .92; letter-spacing: .22em; font-weight: 430; text-shadow: 0 0 34px rgba(244,247,255,.16); }
 .landing__copy p { margin: 18px 0 0; font-size: clamp(.65rem, 1.4vw, .82rem); letter-spacing: .28em; color: #a9b6c1; }
+.squad-diorama {
+  position: relative;
+  width: min(520px, 92vw);
+  height: clamp(164px, 25vh, 232px);
+  margin: -8px 0 -12px;
+  overflow: hidden;
+  border-bottom: 1px solid rgba(64,232,255,.14);
+  background: radial-gradient(ellipse at 50% 62%, rgba(64,232,255,.08), transparent 54%);
+}
+.squad-diorama::before {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(3,6,10,.82), transparent 18%, transparent 82%, rgba(3,6,10,.82)),
+    linear-gradient(0deg, rgba(3,6,10,.74), transparent 30%);
+}
+.squad-diorama canvas { display: block; width: 100%; height: 100%; }
+.squad-diorama figcaption {
+  position: absolute;
+  z-index: 2;
+  left: 0;
+  right: 0;
+  bottom: 8px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  padding: 0 44px;
+  font-size: .42rem;
+  letter-spacing: .14em;
+  text-align: center;
+}
+.squad-diorama__role--guardian { color: var(--system); }
+.squad-diorama__role--scout { color: var(--signal); }
+.squad-diorama__role--mender { color: var(--rescue); }
+.squad-diorama__status {
+  position: absolute;
+  z-index: 2;
+  top: 10px;
+  left: 12px;
+  color: rgba(113,128,141,.72);
+  font-size: .38rem;
+  letter-spacing: .18em;
+}
+.squad-diorama--booting { opacity: .65; }
+.squad-diorama--unavailable canvas { display: none; }
+.squad-diorama--unavailable::after {
+  content: "◇    △    ○";
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--signal);
+  font-size: 1.4rem;
+  letter-spacing: 1.8em;
+  transform: translateX(.9em);
+}
 .mode-list { display: grid; width: min(440px, 100%); border-top: 1px solid var(--line); margin-top: 12px; }
 .mode-action {
   display: flex;
@@ -205,6 +263,7 @@ button:disabled { cursor: not-allowed; }
 .policy__document section { padding: 18px 0; border-top: 1px solid var(--line); }
 .policy__document h2 { margin: 0 0 9px; color: var(--signal); font-size: .64rem; font-weight: 500; letter-spacing: .15em; }
 .policy__document section p { margin: 0; color: #82929d; font-family: Inter, system-ui, sans-serif; font-size: .82rem; line-height: 1.65; }
+.policy__document section a { color: var(--signal); text-underline-offset: 3px; }
 .policy__draft { margin: 24px 0 0; color: var(--rescue); font-size: .52rem; letter-spacing: .12em; }
 
 .screen-header {
@@ -1983,6 +2042,11 @@ button:disabled { cursor: not-allowed; }
 
 @media (prefers-reduced-motion: reduce) {
   .ambient-grid, .landing h1 { animation: none; }
+}
+
+@media (max-width: 720px) {
+  .squad-diorama { width: min(360px, 94vw); height: 142px; margin-bottom: -14px; }
+  .squad-diorama figcaption { padding-inline: 20px; font-size: .38rem; }
 }
 
 /* Strategy lab: casual-first — plan up top, compiler forensics behind a toggle */

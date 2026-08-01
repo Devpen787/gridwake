@@ -1,4 +1,4 @@
-import { TICK_RATE } from "./types";
+import { TICK_RATE, type ArenaMode } from "./types";
 import { bestRoundForLevel, type StoredRound } from "./records";
 
 /**
@@ -17,6 +17,7 @@ export type CampaignLevel = Readonly<{
   parScore: number;
   brief: string;
   hint: string;
+  arenaMode: ArenaMode;
 }>;
 
 function level(
@@ -28,8 +29,9 @@ function level(
   parScore: number,
   brief: string,
   hint: string,
+  arenaMode: ArenaMode = "bastion",
 ): CampaignLevel {
-  return { id, index, name, seed: seed >>> 0, seconds, maxTicks: seconds * TICK_RATE, parScore, brief, hint };
+  return { id, index, name, seed: seed >>> 0, seconds, maxTicks: seconds * TICK_RATE, parScore, brief, hint, arenaMode };
 }
 
 export const CAMPAIGN_LEVELS: readonly CampaignLevel[] = [
@@ -37,8 +39,9 @@ export const CAMPAIGN_LEVELS: readonly CampaignLevel[] = [
     "A calm grid. Corruption seeps in from scattered boundary cells.",
     "A tight ring with two interceptors holds this one. Say what you want guarded."),
   level(1, "twin-front", "TWIN FRONT", 0x4be29a7d, 45, 60,
-    "Two opposing edges press at once. Split attention or hold the middle.",
-    "Try naming a target: the nearest breach, or the highest-pressure sector."),
+    "The grid moves through a horizontal tunnel. Incoming gates advance from the right and must be opened before they reach the core.",
+    "Keep the Guardian screening the core, send the Scout forward, and let the Mender hold the link.",
+    "tunnel"),
   level(2, "slow-tide", "SLOW TIDE", 0x77aa10c9, 50, 60,
     "Five extra seconds. The surge phase lasts longer than you think.",
     "Pursuit costs time. 'Do not chase' keeps your lights near the core late."),

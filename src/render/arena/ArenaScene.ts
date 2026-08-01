@@ -12,7 +12,7 @@ import { layoutFor, pxX, pxY, type ArenaLayout } from "./layout";
 import { drawAtmosphere } from "./layers/atmosphere";
 import { drawCore } from "./layers/core";
 import { drawCorruption } from "./layers/corruption";
-import { drawGrid, gridFieldFor, type PulseWarp } from "./layers/grid";
+import { drawGrid, gridFieldFor, tunnelGridMotion, type PulseWarp } from "./layers/grid";
 import { drawImpacts } from "./layers/impacts";
 import { drawPulse, drawPulseTarget, drawWarningShimmer } from "./layers/pulse";
 import { drawRoles } from "./layers/roles";
@@ -47,6 +47,7 @@ export class ArenaScene {
   private lastPhase = phaseForTick(0);
   private lastHealth = 100;
   private lastPulseUsed: number | null = null;
+  private lastTunnelDistance = 0;
   private possessedId: string | null = null;
   private claimAtMs = 0;
   private frameTimes: number[] = [];
@@ -64,6 +65,12 @@ export class ArenaScene {
   }
 
   syncState(state: EngineState, nowMs = performance.now()): void {
+    if (state.arena.mode === "tunnel" && state.arena.distance !== this.lastTunnelDistance) {
+      // A tunnel shift changes every corruption key at once. Discard the old
+      // per-cell death ghosts so the moving front reads as one coherent wall.
+      this.visuals.clear();
+    }
+    this.lastTunnelDistance = state.arena.distance;
     if (state.possessedLightId !== this.possessedId) {
       this.possessedId = state.possessedLightId;
       if (state.possessedLightId !== null) this.claimAtMs = nowMs;
@@ -136,7 +143,10 @@ export class ArenaScene {
     resetGraphics(this.worldLayer);
     // Arena border acts as the hard visual frame; all rays/trails/veins also
     // pass through clipLineSegment so nothing escapes the grid AABB.
-    drawGrid(this.worldLayer, layout, field, frozen);
+    const gridMotion = state.arena.mode === "tunnel" && !frozen
+      ? tunnelGridMotion(state.tick, state.arena.distance, layout.cell)
+      : { offsetX: 0, columnPhase: 0 };
+    drawGrid(this.worldLayer, layout, field, frozen, gridMotion);
     drawTactics(this.worldLayer, layout, state);
     drawCorruption(
       this.worldLayer,

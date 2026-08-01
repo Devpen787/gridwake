@@ -11,3 +11,8 @@ __pycache__/
 .vercel
 .DS_Store
 demo/out/
+
+# Build-time asset services. Never expose these through VITE_ variables.
+.env*
+!.env.example
+.thrixel/

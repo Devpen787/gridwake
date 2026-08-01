@@ -1,9 +1,11 @@
-import { useMemo } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { ROUND_SECONDS } from "../game/types";
 import { campaignSummary } from "../game/campaign";
 import { careerStats, loadRounds } from "../game/records";
 import { CoreMark } from "./CoreMark";
 import type { PolicyKind } from "./PolicyScreen";
+
+const SquadDiorama = lazy(() => import("./SquadDiorama"));
 
 type LandingScreenProps = Readonly<{
   onSolo: () => void;
@@ -18,12 +20,36 @@ export function LandingScreen({ onSolo, onCampaign, onRecords, onCreateRoom, onJ
   const rounds = useMemo(() => loadRounds(), []);
   const career = useMemo(() => careerStats(rounds), [rounds]);
   const ladder = useMemo(() => campaignSummary(rounds), [rounds]);
+  const [showDiorama, setShowDiorama] = useState(false);
+
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    let timeout = 0;
+    let idle = 0;
+    const idleWindow = window as Window & {
+      requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
+    if (typeof idleWindow.requestIdleCallback === "function") {
+      idle = idleWindow.requestIdleCallback(() => setShowDiorama(true), { timeout: 900 });
+    } else {
+      timeout = window.setTimeout(() => setShowDiorama(true), 320);
+    }
+    return () => {
+      if (idle) idleWindow.cancelIdleCallback?.(idle);
+      if (timeout) window.clearTimeout(timeout);
+    };
+  }, []);
 
   return (
     <section className="landing screen" aria-labelledby="gridwake-title">
       <div className="truth-label">BUILD WEEK PROTOTYPE</div>
       <div className="landing__center">
-        <CoreMark size="large" />
+        {showDiorama ? (
+          <Suspense fallback={<CoreMark size="large" />}>
+            <SquadDiorama />
+          </Suspense>
+        ) : <CoreMark size="large" />}
         <div className="landing__copy">
           <h1 id="gridwake-title">GRIDWAKE</h1>
           <p>ONE SENTENCE. ONE LIGHT. ONE SHARED GRID.</p>
@@ -72,6 +98,7 @@ export function LandingScreen({ onSolo, onCampaign, onRecords, onCreateRoom, onJ
         <button type="button" onClick={() => onPolicy("terms")}>TERMS</button>
         <button type="button" onClick={() => onPolicy("privacy")}>PRIVACY</button>
         <button type="button" onClick={() => onPolicy("community")}>COMMUNITY</button>
+        <button type="button" onClick={() => onPolicy("credits")}>CREDITS</button>
       </nav>
     </section>
   );

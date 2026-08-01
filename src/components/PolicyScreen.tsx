@@ -1,4 +1,7 @@
-export type PolicyKind = "terms" | "privacy" | "community";
+import { useEffect, useState } from "react";
+import { fetchDioramaManifest, type DioramaAttribution } from "../render/diorama/manifest";
+
+export type PolicyKind = "terms" | "privacy" | "community" | "credits";
 
 type PolicyScreenProps = Readonly<{
   kind: PolicyKind;
@@ -45,10 +48,31 @@ const CONTENT: Record<PolicyKind, Readonly<{
       { heading: "REPORTING", body: "This preview does not yet provide in-game reporting or centralized moderation. Preserve a non-sensitive screenshot and use the Devpost contact route. For imminent danger, contact the appropriate local service—not GRIDWAKE." },
     ],
   },
+  credits: {
+    title: "CREDITS",
+    intro: "GRIDWAKE is an independent deterministic browser game created for OpenAI Build Week.",
+    sections: [
+      { heading: "CREATION", body: "Product direction and game decisions by Devinson Peña. Implementation, verification, adversarial review, browser playtesting, and release work used AI-assisted development workflows." },
+      { heading: "RUNTIME", body: "React, TypeScript, Vite, PixiJS, Three.js, Trystero, IBM Plex Mono, Web Audio, WebRTC, Cloudflare TURN, and Vercel." },
+      { heading: "DESIGN", body: "Phosphor Noir combines vector-arcade silhouettes, restrained CRT atmosphere, deterministic tactical receipts, and a modern accessible DOM interface." },
+      { heading: "3D ASSET POLICY", body: "Optional generated assets are loaded only from the local GRIDWAKE asset manifest. Missing assets fall back to procedural geometry and never affect simulation rules, scoring, or replay hashes." },
+    ],
+  },
 };
 
 export function PolicyScreen({ kind, onBack }: PolicyScreenProps) {
   const policy = CONTENT[kind];
+  const [assetAttribution, setAssetAttribution] = useState<DioramaAttribution | null>(null);
+
+  useEffect(() => {
+    if (kind !== "credits") return;
+    let active = true;
+    void fetchDioramaManifest().then((manifest) => {
+      if (active) setAssetAttribution(manifest?.attribution ?? null);
+    });
+    return () => { active = false; };
+  }, [kind]);
+
   return (
     <section className="policy screen" aria-labelledby="policy-title">
       <header className="screen-header">
@@ -66,6 +90,16 @@ export function PolicyScreen({ kind, onBack }: PolicyScreenProps) {
             <p>{section.body}</p>
           </section>
         ))}
+        {kind === "credits" && assetAttribution ? (
+          <section>
+            <h2>GENERATED 3D ASSETS</h2>
+            <p>
+              {assetAttribution.label}{" · "}
+              <a href={assetAttribution.url} target="_blank" rel="noreferrer">THRIXEL</a>
+              {` · ${assetAttribution.license}`}
+            </p>
+          </section>
+        ) : null}
         <p className="policy__draft">PREVIEW NOTICE · NOT A SUBSTITUTE FOR PRODUCTION LEGAL REVIEW</p>
       </article>
     </section>

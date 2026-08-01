@@ -17,6 +17,7 @@ import {
   ROUND_TICKS,
   type AttributionEntry,
   type AttributionSource,
+  type ArenaMode,
   type ClearResolution,
   type CompiledStrategy,
   type EngineState,
@@ -30,6 +31,7 @@ import {
   type RoundPhase,
   type RoundReceipt,
   type StrategyPolicy,
+  TUNNEL_SCROLL_TICKS,
 } from "./types";
 import {
   cellKey,
@@ -88,28 +90,58 @@ function boundaryCellFromIndex(index: number): Point {
   return { x: 0, y: GRID_ROWS - 2 - cursor };
 }
 
+const TUNNEL_GATE_TICKS = TUNNEL_SCROLL_TICKS * 4;
+
+function addTunnelGate(corruption: Set<string>, rngState: number, x: number): number {
+  const rng = lcgNext(rngState);
+  const gapHeight = 5;
+  const gapStart = 2 + (rng % (GRID_ROWS - gapHeight - 3));
+  for (let y = 1; y < GRID_ROWS - 1; y += 1) {
+    if (y >= gapStart && y < gapStart + gapHeight) continue;
+    corruption.add(cellKey(x, y));
+  }
+  return rng;
+}
+
+function initialCorruption(seed: number, arenaMode: ArenaMode): Readonly<{
+  corruption: Set<string>;
+  rngState: number;
+}> {
+  let rngState = seed >>> 0;
+  const corruption = new Set<string>();
+  if (arenaMode === "tunnel") {
+    for (const x of [CORE_X + 6, CORE_X + 10, GRID_COLUMNS - 1]) {
+      rngState = addTunnelGate(corruption, rngState, x);
+    }
+    return { corruption, rngState };
+  }
+  for (let index = 0; index < 42; index += 1) {
+    rngState = lcgNext(rngState);
+    const point = boundaryCellFromIndex(rngState);
+    corruption.add(cellKey(point.x, point.y));
+  }
+  return { corruption, rngState };
+}
+
 export function createInitialState(
   seed: number,
   strategy: CompiledStrategy,
   maxTicks = ROUND_TICKS,
+  arenaMode: ArenaMode = "bastion",
 ): EngineState {
-  let rng = seed >>> 0;
-  const corruption = new Set<string>();
-  for (let index = 0; index < 42; index += 1) {
-    rng = lcgNext(rng);
-    const point = boundaryCellFromIndex(rng);
-    corruption.add(cellKey(point.x, point.y));
-  }
+  const seeded = initialCorruption(seed, arenaMode);
+  const corruption = seeded.corruption;
 
   const roles = strategy.instincts.map((instinct) => instinct.role);
   const lights = roles.map(makeLight);
-  const replayHash = hashEvent(seed >>> 0, `start|${strategyHash(strategy)}|${maxTicks}`);
+  const replayHash = hashEvent(seed >>> 0, `start|${strategyHash(strategy)}|${maxTicks}|${arenaMode}`);
 
   return {
     seed: seed >>> 0,
-    rngState: rng,
+    rngState: seeded.rngState,
     tick: 0,
     maxTicks,
+    arena: { mode: arenaMode, distance: 0 },
     health: 100,
     policy: strategy.policy,
     plan: strategy.plan,
@@ -423,7 +455,8 @@ function orderThreatsForTarget(
 }
 
 function eligibleThreats(state: EngineState): Point[] {
-  const maximumRange = state.policy.engagementRadius + state.policy.pursuitLimit + LOOKAHEAD_CELLS;
+  const lookahead = state.arena.mode === "tunnel" ? LOOKAHEAD_CELLS + 7 : LOOKAHEAD_CELLS;
+  const maximumRange = state.policy.engagementRadius + state.policy.pursuitLimit + lookahead;
   return [...state.corruption]
     .map(parseCellKey)
     .filter((point) => manhattan(point, CORE_POINT) <= maximumRange);
@@ -486,7 +519,16 @@ export function formationAnchor(state: EngineState, lightIndex: number, regroup 
       { x: CORE_X + 5, y: CORE_Y + 3 },
       { x: CORE_X - 5, y: CORE_Y + 3 },
     ];
-    return anchors[(lightIndex + (movementStyle === "disciplined" ? 0 : phase)) % anchors.length];
+    const anchor = anchors[lightIndex % anchors.length];
+    if (movementStyle === "disciplined" || regroup) return anchor;
+    const patrol: readonly Point[] = movementStyle === "erratic"
+      ? [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: -1, y: 0 }, { x: 0, y: -1 }]
+      : [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: -1, y: 0 }, { x: 0, y: -1 }, { x: 0, y: 0 }];
+    const local = patrol[(phase + lightIndex * 2) % patrol.length];
+    return {
+      x: clamp(anchor.x + local.x, 0, GRID_COLUMNS - 1),
+      y: clamp(anchor.y + local.y, 0, GRID_ROWS - 1),
+    };
   }
 
   const directionIndex = (phase + lightIndex * 5 + wobble + RING_DIRECTIONS.length * 4) % RING_DIRECTIONS.length;
@@ -499,6 +541,24 @@ export function formationAnchor(state: EngineState, lightIndex: number, regroup 
     x: clamp(CORE_X + offset.x, 0, GRID_COLUMNS - 1),
     y: clamp(CORE_Y + offset.y, 0, GRID_ROWS - 1),
   };
+}
+
+function roleFormationAnchor(
+  state: EngineState,
+  light: LightState,
+  lightIndex: number,
+  regroup: boolean,
+): Point {
+  const authored = formationAnchor(state, lightIndex, regroup);
+  if (state.arena.mode !== "tunnel" || regroup) return authored;
+  const authoredYOffset = clamp(authored.y - CORE_Y, -5, 5);
+  if (light.role === "guardian") {
+    return { x: CORE_X - 2, y: clamp(CORE_Y + authoredYOffset, 2, GRID_ROWS - 3) };
+  }
+  if (light.role === "scout") {
+    return { x: CORE_X + 7, y: clamp(CORE_Y + authoredYOffset, 2, GRID_ROWS - 3) };
+  }
+  return { x: CORE_X + 2, y: clamp(CORE_Y + Math.round(authoredYOffset / 2), 2, GRID_ROWS - 3) };
 }
 
 type LightAssignment = Readonly<{
@@ -520,7 +580,8 @@ function canInterceptLight(
   if (!directive) return true;
   if (directive.action !== "intercept") return false;
   if (directive.actor === "guardian") return false;
-  return directive.actor === "squad" || directive.actor === "scout";
+  if (directive.actor === "scout") return light.role === "scout";
+  return directive.actor === "squad";
 }
 
 function assignLights(
@@ -578,6 +639,7 @@ function assignLights(
         light,
         index,
         distance: Math.min(...threats.map((point) => manhattan(light, point))),
+        roleOrder: light.role === "scout" ? 0 : light.role === "mender" ? 1 : 2,
       }))
       .filter(({ light }) => (
         light.id !== state.possessedLightId
@@ -588,7 +650,7 @@ function assignLights(
           menderRepair,
         )
       ))
-      .toSorted((a, b) => a.distance - b.distance || a.index - b.index);
+      .toSorted((a, b) => a.roleOrder - b.roleOrder || a.distance - b.distance || a.index - b.index);
 
     if (interceptDirective && targetPreference === "highest-pressure-sector" && attribution) {
       const worst = worstSector(state.corruption);
@@ -633,7 +695,20 @@ function assignLights(
             a.x - b.x
           ),
         );
-      const target = ordered[0] ?? threats[0];
+      const bestTarget = ordered[0] ?? threats[0];
+      const retainedTarget = light.mode === "intercept"
+        ? remaining.find((point) => point.x === light.target.x && point.y === light.target.y)
+        : undefined;
+      const retainedMatchesPressure = !retainedTarget
+        || targetPreference !== "highest-pressure-sector"
+        || sectorForPoint(retainedTarget) === worstSector(state.corruption);
+      const retainedUrgency = retainedTarget
+        ? urgencyByCell.get(cellKey(retainedTarget.x, retainedTarget.y)) ?? 0
+        : 0;
+      const bestUrgency = urgencyByCell.get(cellKey(bestTarget.x, bestTarget.y)) ?? 0;
+      const target = retainedTarget && retainedMatchesPressure && bestUrgency - retainedUrgency < 20
+        ? retainedTarget
+        : bestTarget;
       assignments.set(light.id, {
         target,
         mode: "intercept",
@@ -663,7 +738,7 @@ function assignLights(
     if (assignments.has(light.id)) return;
 
     if (light.role === "guardian" && guardianHold) {
-      const target = formationAnchor(state, index, regroup);
+      const target = roleFormationAnchor(state, light, index, regroup);
       assignments.set(light.id, {
         target,
         mode: "formation",
@@ -676,50 +751,91 @@ function assignLights(
 
     if (light.role === "mender" && menderRepair) {
       const repairTarget = sharedTrailRepairTarget(state);
-      const target = repairTarget ?? formationAnchor(state, index, regroup);
+      const target = repairTarget ?? roleFormationAnchor(state, light, index, regroup);
       assignments.set(light.id, {
         target,
         mode: "formation",
         urgency: repairTarget ? 40 : 0,
         sector: sectorForPoint(target),
-        reason: repairTarget ? "MENDER · SHARED TRAIL REPAIR" : `FORMATION · ${state.policy.formation.toUpperCase()}`,
+        reason: repairTarget ? "MENDER · SHARED TRAIL REPAIR" : `MENDER · LINK SUPPORT · ${state.policy.formation.toUpperCase()}`,
       });
       return;
     }
 
-    const target = formationAnchor(state, index, regroup);
+    const target = roleFormationAnchor(state, light, index, regroup);
     assignments.set(light.id, {
       target,
       mode: "formation",
       urgency: 0,
       sector: sectorForPoint(target),
-      reason: regroup ? "REGROUP · CORE RING" : `FORMATION · ${state.policy.formation.toUpperCase()}`,
+      reason: regroup
+        ? "REGROUP · CORE RING"
+        : light.role === "guardian"
+          ? `GUARDIAN · CORE SCREEN · ${state.policy.formation.toUpperCase()}`
+          : light.role === "scout"
+            ? `SCOUT · FORWARD PATROL · ${state.policy.formation.toUpperCase()}`
+            : `MENDER · LINK SUPPORT · ${state.policy.formation.toUpperCase()}`,
     });
   });
   return assignments;
 }
 
-function stepToward(light: LightState, target: Point, state: EngineState): Point {
+function stepToward(
+  light: LightState,
+  target: Point,
+  state: EngineState,
+  occupied: ReadonlySet<string>,
+): Point {
   const dx = Math.sign(target.x - light.x);
   const dy = Math.sign(target.y - light.y);
   const tie = hashText(`${state.seed}|step|${state.tick}|${light.id}|${state.policy.movementStyle}`);
   const preferX = Math.abs(target.x - light.x) > Math.abs(target.y - light.y) ||
     (Math.abs(target.x - light.x) === Math.abs(target.y - light.y) && (tie & 1) === 0);
-  return preferX && dx !== 0
-    ? { x: light.x + dx, y: light.y }
-    : dy !== 0
-      ? { x: light.x, y: light.y + dy }
-      : dx !== 0
-        ? { x: light.x + dx, y: light.y }
-        : { x: light.x, y: light.y };
+  const xStep = dx === 0 ? null : { x: light.x + dx, y: light.y };
+  const yStep = dy === 0 ? null : { x: light.x, y: light.y + dy };
+  const candidates = preferX ? [xStep, yStep] : [yStep, xStep];
+  const previousKey = cellKey(light.previousX, light.previousY);
+  const targetKey = cellKey(target.x, target.y);
+  for (const candidate of candidates) {
+    if (!candidate || occupied.has(cellKey(candidate.x, candidate.y))) continue;
+    const candidateKey = cellKey(candidate.x, candidate.y);
+    if (candidateKey === previousKey && candidateKey !== targetKey) continue;
+    return candidate;
+  }
+  for (const candidate of candidates) {
+    if (candidate && !occupied.has(cellKey(candidate.x, candidate.y))) return candidate;
+  }
+  return { x: light.x, y: light.y };
+}
+
+function advanceTunnelFront(
+  corruption: Set<string>,
+  rngState: number,
+  tick: number,
+): { corruption: Set<string>; rngState: number; distanceDelta: number } {
+  if (tick % TUNNEL_SCROLL_TICKS !== 0) {
+    return { corruption, rngState, distanceDelta: 0 };
+  }
+  const shifted = new Set<string>();
+  for (const key of corruption) {
+    const point = parseCellKey(key);
+    if (point.x > 0) shifted.add(cellKey(point.x - 1, point.y));
+  }
+  let nextRng = rngState;
+  if (tick % TUNNEL_GATE_TICKS === 0) {
+    nextRng = addTunnelGate(shifted, nextRng, GRID_COLUMNS - 1);
+  }
+  return { corruption: shifted, rngState: nextRng, distanceDelta: 1 };
 }
 
 function growCorruption(
   corruption: Set<string>,
   rngState: number,
   tick: number,
-): { corruption: Set<string>; rngState: number } {
-  if (tick % 3 !== 0 || corruption.size === 0) return { corruption, rngState };
+  arenaMode: ArenaMode,
+): { corruption: Set<string>; rngState: number; distanceDelta: number } {
+  if (arenaMode === "tunnel") return advanceTunnelFront(corruption, rngState, tick);
+  if (tick % 3 !== 0 || corruption.size === 0) return { corruption, rngState, distanceDelta: 0 };
   const growthCount = 1 + Number(tick >= 150) + Number(tick >= 330);
   let rng = rngState;
   const grown = new Set(corruption);
@@ -743,7 +859,7 @@ function growCorruption(
     const candidate = options[(rng >>> 8) % options.length];
     grown.add(cellKey(candidate.x, candidate.y));
   }
-  return { corruption: grown, rngState: rng };
+  return { corruption: grown, rngState: rng, distanceDelta: 0 };
 }
 
 function distinctTrailOwnersNear(point: Point, lights: readonly LightState[]): number {
@@ -822,10 +938,11 @@ function moveLights(
     return { lights: [...state.lights], rngState, replayHash: state.replayHash, manualIntent: state.manualIntent };
   }
   const assignments = assignLights(state, attribution);
-  const occupied = new Set<string>();
+  const occupied = new Set(state.lights.map((light) => cellKey(light.x, light.y)));
   let replayHash = state.replayHash;
   let consumedManual = false;
   const lights = state.lights.map((light) => {
+    occupied.delete(cellKey(light.x, light.y));
     if (light.id === state.possessedLightId) {
       const intent = state.manualIntent;
       let point = { x: light.x, y: light.y };
@@ -862,13 +979,16 @@ function moveLights(
       sector: 0,
       reason: "FORMATION · CORE",
     };
-    let point = stepToward(light, assignment.target, state);
-    if (occupied.has(cellKey(point.x, point.y))) point = { x: light.x, y: light.y };
+    const point = stepToward(light, assignment.target, state, occupied);
     occupied.add(cellKey(point.x, point.y));
     const trail = [...light.trail, point].slice(-64);
     const intention = assignment.mode === "intercept"
-      ? `INTERCEPT / ${assignment.target.x}:${assignment.target.y}`
-      : `RETURN / ${state.policy.formation.toUpperCase()}`;
+      ? `${light.role === "scout" ? "HUNT" : "INTERCEPT"} / ${assignment.target.x}:${assignment.target.y}`
+      : light.role === "guardian"
+        ? `RETURN / SCREEN / ${assignment.target.x}:${assignment.target.y}`
+        : light.role === "mender"
+          ? `RETURN / STITCH / ${assignment.target.x}:${assignment.target.y}`
+          : `RETURN / PATROL / ${assignment.target.x}:${assignment.target.y}`;
     return {
       ...light,
       previousX: light.x,
@@ -976,6 +1096,7 @@ function stateEvent(
   pulseClears: number,
   overrideRemaining: number,
   possessedLightId: string | null,
+  arena: EngineState["arena"],
 ): string {
   const positions = lights.map((light) => `${light.id}:${light.x},${light.y}`).join(";");
   return [
@@ -989,6 +1110,8 @@ function stateEvent(
     pulseClears,
     overrideRemaining,
     possessedLightId ?? "none",
+    arena.mode,
+    arena.distance,
   ].join("|");
 }
 
@@ -1077,11 +1200,20 @@ export function advanceTick(state: EngineState): EngineState {
     );
   }
 
-  const grown = growCorruption(new Set(state.corruption), state.rngState, tick);
+  const grown = growCorruption(
+    new Set(state.corruption),
+    state.rngState,
+    tick,
+    state.arena.mode,
+  );
   const provisional: EngineState = {
     ...state,
     tick,
     corruption: grown.corruption,
+    arena: {
+      ...state.arena,
+      distance: state.arena.distance + grown.distanceDelta,
+    },
     overrideTicksRemaining,
     replayHash: replayBase,
   };
@@ -1147,6 +1279,7 @@ export function advanceTick(state: EngineState): EngineState {
     ...state,
     tick,
     rngState: moved.rngState,
+    arena: provisional.arena,
     health,
     corruption: repaired.corruption,
     lights: moved.lights,
@@ -1184,6 +1317,7 @@ export function advanceTick(state: EngineState): EngineState {
       state.pulseClears,
       overrideTicksRemaining,
       next.possessedLightId,
+      next.arena,
     ),
   );
 

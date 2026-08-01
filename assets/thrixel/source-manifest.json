@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "project": "gridwake-phosphor-noir",
+  "pilot": ["tunnel-rib", "guardian"],
+  "sharedDirection": "GRIDWAKE phosphor-noir game asset. Minimal hard-surface geometry, strong silhouette, blackened graphite metal, thin cyan emissive seams, no text, no logos, no floor, no environment, centered at world origin, Y-up, forward facing negative Z. Low-poly game-ready topology, separate logically named parts, one shared material family, designed to remain legible at thumbnail size.",
+  "assets": [
+    {
+      "id": "tunnel-rib",
+      "kind": "environment",
+      "maxBytes": 2500000,
+      "prompt": "A single modular octagonal transit-tunnel rib for a retro-futurist tactical grid. Open center large enough for three small drones, deep structural side channels, broken asymmetry in two corners, repeating end connectors, sparse white and cyan emissive guide strips. The module must tile seamlessly along the Z axis and read as Matrix-meets-TRON without copying either franchise. No floor plane beyond the rib itself."
+    },
+    {
+      "id": "guardian",
+      "kind": "role",
+      "maxBytes": 1800000,
+      "prompt": "A compact hovering Guardian light-drone. Broad shield-like diamond silhouette, protected luminous core, two articulated barrier vanes, heavy but elegant, no humanoid face, no weapons, cyan-white energy with a subtle violet system accent. Distinct front direction, clean pivot at its center, separate named core, shell, and vane parts."
+    },
+    {
+      "id": "scout",
+      "kind": "role",
+      "maxBytes": 1800000,
+      "prompt": "A compact hovering Scout light-drone. Fast arrowhead silhouette, narrow sensor prow, three swept fins, exposed luminous core, agile and slightly dangerous, no humanoid face, no weapons, cyan signal energy. Distinct front direction, clean pivot at its center, separate named core, prow, and fin parts."
+    },
+    {
+      "id": "mender",
+      "kind": "role",
+      "maxBytes": 1800000,
+      "prompt": "A compact hovering Mender light-drone. Circular repair halo around a small luminous core, three articulated link arms, calm precise silhouette, no humanoid face, no weapons, warm amber rescue energy with graphite metal. Clean pivot at its center, separate named core, halo, and arm parts."
+    },
+    {
+      "id": "grid-core",
+      "kind": "hero",
+      "maxBytes": 2200000,
+      "prompt": "A suspended tactical Grid Core: nested diamond mechanisms protecting a brilliant white central point, four restrained stabilizer arms, concentric energy rings, sacred but engineered, symmetric from the front with small mechanical asymmetry in depth. White and cyan emissive seams, graphite shell, separate named core, rings, arms, and shell parts."
+    },
+    {
+      "id": "corruption-gate",
+      "kind": "threat",
+      "maxBytes": 2200000,
+      "prompt": "A modular corruption gate invading a geometric transit tunnel. Jagged branching hard-surface growth forms a partial barrier with three readable gaps. Black-red material, hot crimson fracture veins, dangerous but not organic gore, asymmetrical silhouette, separate named root, branch, and ember parts. Designed to repeat with rotations and scale variations."
+    }
+  ]
+}
