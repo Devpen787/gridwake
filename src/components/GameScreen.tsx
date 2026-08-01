@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { gameAudio } from "../audio/audioDirector";
 import {
   activatePulse,
@@ -33,6 +33,8 @@ import {
 import { EventToast } from "./EventToast";
 import { MobileControls } from "./MobileControls";
 import { PixiArena } from "./PixiArena";
+
+const ThreeArena = lazy(() => import("./ThreeArena"));
 
 type GameScreenProps = Readonly<{
   initialState: EngineState;
@@ -459,8 +461,10 @@ export function GameScreen({
         .join(" ")}
       aria-label="Live GRIDWAKE round"
     >
-      <div className="pixi-arena-shell">
-        <PixiArena state={state} />
+      <div className="live-arena-shell">
+        <Suspense fallback={<PixiArena state={state} />}>
+          <ThreeArena state={state} />
+        </Suspense>
         <div className="phosphor-overlay" aria-hidden="true" />
       </div>
       <EventToast event={toastEvent} />
